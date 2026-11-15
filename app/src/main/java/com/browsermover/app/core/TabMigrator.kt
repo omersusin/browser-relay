@@ -34,7 +34,6 @@ internal object TabMigrator {
         val warning: String? = null
     )
 
-    private const val MAX_TABS = 80
 
     // ------------------------------------------------------------------
     //  Discovery
@@ -130,10 +129,11 @@ internal object TabMigrator {
 
     suspend fun openInTarget(pkg: String, tabs: List<OpenTab>): OpenResult {
         if (tabs.isEmpty()) return OpenResult(0, 0, "No open tabs to restore.")
+        // Restore every unique HTTP(S) tab. The target browser caps its own
+        // tab count, and dropping tabs here would silently lose user data.
         val selected = tabs
             .filter { it.url.startsWith("http://", true) || it.url.startsWith("https://", true) }
             .distinctBy { it.url }
-            .take(MAX_TABS)
 
         if (selected.isEmpty()) {
             return OpenResult(0, 0, "No HTTP(S) tabs were available to restore.")
@@ -164,7 +164,7 @@ internal object TabMigrator {
             !result.success -> "Could not open tabs in $pkg."
             !running -> "The target browser did not stay running after the tab intents."
             tabs.size > selected.size ->
-                "Opened the first ${selected.size} tabs only (limit $MAX_TABS)."
+                "Skipped ${tabs.size - selected.size} non-HTTP(S) or duplicate tab(s)."
             else -> null
         }
         return OpenResult(

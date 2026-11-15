@@ -57,7 +57,7 @@ your bookmarks and history.
 | **Cookies** | ✅ | ✅ | Android stores both engines' cookies as plaintext; rows are merged so website sessions survive. |
 | **Extensions** | ✅* | ⚠️ | Inventory + Chrome Web Store match + CRX download + `storage.local` conversion; the user taps Install. |
 | **Site Permissions** | ✅ | ❌ | Same-engine only. |
-| **Tabs** | ✅ | ✅ | Same-engine session files are copied; cross-engine URLs are opened in the target (up to 80). |
+| **Tabs** | ✅ | ✅ | Same-engine session files are copied; cross-engine URLs are opened in the target (all unique HTTP(S) tabs). |
 
 \* Same-engine password/extension migration depends on the target app using
 compatible encryption and extension IDs. Chromium passwords are tied to the
@@ -130,7 +130,7 @@ shelling out to `sqlite3`, which is missing on many Android systems.
   tabs use `mozilla_components_session_storage_gecko.json` (with an AtomicFile
   `.bak` fallback); `tabs.sqlite` alone is not the live session. Cross-engine
   tabs are restored as URLs, so tab groups, pinned state and per-tab
-  back/forward history are not preserved. Up to 80 HTTP(S) tabs are opened.
+  back/forward history are not preserved. Every unique HTTP(S) tab is opened.
 - Extensions are not transplanted as binaries. The Firefox → Chromium bridge
   inventories source add-ons, finds a Chrome Web Store match, downloads the CRX,
   converts Firefox `storage.local` data to Chromium LevelDB, and opens the store
@@ -169,8 +169,8 @@ shelling out to `sqlite3`, which is missing on many Android systems.
   package-path rewriting inside SQLite databases is skipped. Cross-engine
   conversion does not depend on `sqlite3`.
 - **Tabs:** Cross-engine tabs are opened via intents, so tab grouping, pinned
-  tabs and history are not preserved. A source with more than 80 HTTP(S) tabs is
-  truncated. Duplicate URLs are opened once.
+  tabs and history are not preserved. Non-HTTP(S) tabs (for example
+  `about:blank`) and duplicate URLs are skipped; all other tabs are opened.
 - **Google account:** Chrome's signed-in Google account is part of Android
   `AccountManager`; copying a Chrome profile cannot move it. Website Google
   logins are preserved through cookies.
