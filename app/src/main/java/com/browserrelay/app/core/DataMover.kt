@@ -296,6 +296,7 @@ class DataMover(private val context: Context) {
         val dstFile = "$dstPrefs/fxaAppState.xml"
         val targetUid = BrowserPaths.uid(dstPkg)
         val prefsFile = "$dstPrefs/fenix_preferences.xml"
+        val pkgPrefsFile = "$dstPrefs/${dstPkg}_preferences.xml"
         val commands = mutableListOf(
             "mkdir -p ${BrowserPaths.q(dstPrefs)} 2>/dev/null || true",
             "cp -f ${BrowserPaths.q(srcFile)} ${BrowserPaths.q(dstFile)} 2>/dev/null",
@@ -306,27 +307,29 @@ class DataMover(private val context: Context) {
                 "${BrowserPaths.q("$dstPrefs/fxaStateAC_kp_post_m.xml")} " +
                 "${BrowserPaths.q("$dstPrefs/fxaStateAC_kp_pre_m.xml")} " +
                 "2>/dev/null || true",
-            "if [ -f ${BrowserPaths.q(prefsFile)} ]; then " +
+            "for f in ${BrowserPaths.q(prefsFile)} ${BrowserPaths.q(pkgPrefsFile)}; do " +
+                "if [ -f \"${'$'}f\" ]; then " +
                 "sed -i 's/name=\"pref_key_fxa_signed_in\" value=\"false\"/" +
-                "name=\"pref_key_fxa_signed_in\" value=\"true\"/' " +
-                "${BrowserPaths.q(prefsFile)} 2>/dev/null || true; fi"
+                "name=\"pref_key_fxa_signed_in\" value=\"true\"/' \"${'$'}f\" " +
+                "2>/dev/null || true; fi; done"
         )
         if (!targetUid.isNullOrBlank()) {
             commands.add(
                 "chown ${targetUid}:${targetUid} ${BrowserPaths.q(dstFile)} " +
-                    "${BrowserPaths.q(prefsFile)} 2>/dev/null || true"
+                    "${BrowserPaths.q(prefsFile)} ${BrowserPaths.q(pkgPrefsFile)} " +
+                    "2>/dev/null || true"
             )
         }
         commands.add(
             "chmod 660 ${BrowserPaths.q(dstFile)} ${BrowserPaths.q(prefsFile)} " +
-                "2>/dev/null || true"
+                "${BrowserPaths.q(pkgPrefsFile)} 2>/dev/null || true"
         )
         // cp/sed create files as root; restore the SELinux label too, or
         // Firefox's own process cannot read the transplanted account.
         commands.add(
             "command -v restorecon >/dev/null 2>&1 && " +
                 "restorecon -F ${BrowserPaths.q(dstFile)} ${BrowserPaths.q(prefsFile)} " +
-                "2>/dev/null || true"
+                "${BrowserPaths.q(pkgPrefsFile)} 2>/dev/null || true"
         )
         RootHelper.execMultiple(commands)
 

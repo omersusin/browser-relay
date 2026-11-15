@@ -433,21 +433,35 @@ main() {
 
     if [ "$MIGRATE_EXTENSIONS" = "1" ]; then
     # Most Fenix builds keep extensions in the active profile. A few builds
-    # and old forks keep the same files under files/ instead. Fall back to
-    # that location so an extension migration is never silently empty.
+    # and old forks keep the same files under files/ instead. Always install
+    # the package into the target profile, and mirror a files/-root source
+    # into the target files/ root as well so absolute paths in extensions.json
+    # resolve in both layouts.
     local src_ext_root="$src_profile"
     local dst_ext_root="$dst_profile"
+    local mirror_files=0
     if [ ! -d "${src_profile}/extensions" ] && [ ! -f "${src_profile}/extensions.json" ] && \
        { [ -d "${src_files}/extensions" ] || [ -f "${src_files}/extensions.json" ]; }; then
         src_ext_root="$src_files"
-        dst_ext_root="$dst_files"
-        log_info "Extensions found under files/; using files/extensions"
+        mirror_files=1
+        log_info "Extensions found under files/; installing into the target profile and files/"
     fi
 
-    safe_cp "${src_ext_root}/extensions" "${dst_ext_root}/extensions" "extensions/"
-    safe_cp "${src_ext_root}/extensions.json" "${dst_ext_root}/extensions.json" "extensions.json"
-    safe_cp "${src_ext_root}/extension-preferences.json" "${dst_ext_root}/extension-preferences.json" "extension-preferences.json"
-    safe_cp "${src_ext_root}/browser-extension-data" "${dst_ext_root}/browser-extension-data" "browser-extension-data/"
+    safe_cp "${src_ext_root}/extensions" "${dst_profile}/extensions" "extensions/"
+    safe_cp "${src_ext_root}/extensions.json" "${dst_profile}/extensions.json" "extensions.json"
+    safe_cp "${src_ext_root}/extension-preferences.json" "${dst_profile}/extension-preferences.json" "extension-preferences.json"
+    safe_cp "${src_ext_root}/browser-extension-data" "${dst_profile}/browser-extension-data" "browser-extension-data/"
+
+    if [ "$mirror_files" = "1" ]; then
+        safe_cp "${src_files}/extensions" "${dst_files}/extensions" "extensions/ (files mirror)"
+        safe_cp "${src_files}/extensions.json" "${dst_files}/extensions.json" "extensions.json (files mirror)"
+        safe_cp "${src_files}/extension-preferences.json" "${dst_files}/extension-preferences.json" "extension-preferences.json (files mirror)"
+        safe_cp "${src_files}/browser-extension-data" "${dst_files}/browser-extension-data" "browser-extension-data/ (files mirror)"
+        # The manifest may live under files/ while its per-extension data is
+        # still in the profile. Copy the profile copy too when it exists.
+        safe_cp "${src_profile}/extension-preferences.json" "${dst_profile}/extension-preferences.json" "extension-preferences.json (profile)"
+        safe_cp "${src_profile}/browser-extension-data" "${dst_profile}/browser-extension-data" "browser-extension-data/ (profile)"
+    fi
 
     if [ -f "${src_profile}/storage-sync-v2.sqlite" ]; then
         safe_cp "${src_profile}/storage-sync-v2.sqlite" "${dst_profile}/storage-sync-v2.sqlite" "storage-sync (profile)"
@@ -460,19 +474,26 @@ main() {
     # /data/data or /data/user/0, and the profile directory name differs
     # between source and target. Patch the profile segment globally so a
     # path under /data/user/0 is not left pointing at the source profile.
-    if [ -f "${dst_ext_root}/extensions.json" ]; then
-        log_info "Patching extensions.json paths..."
-        sed -i "s|/files/mozilla/${src_name}|/files/mozilla/${dst_name}|g" "${dst_ext_root}/extensions.json" 2>/dev/null
-        sed -i "s|${src_dd}/files/mozilla/${src_name}|${dst_dd}/files/mozilla/${dst_name}|g" "${dst_ext_root}/extensions.json" 2>/dev/null
-        sed -i "s|${src_dd}/|${dst_dd}/|g" "${dst_ext_root}/extensions.json" 2>/dev/null
-        sed -i "s|${SRC}|${DST}|g" "${dst_ext_root}/extensions.json" 2>/dev/null
-        log_ok "extensions.json patched"
+    local ext_jsons="${dst_profile}/extensions.json"
+    if [ "$mirror_files" = "1" ]; then
+        ext_jsons="$ext_jsons ${dst_files}/extensions.json"
     fi
+    for ej in $ext_jsons; do
+        [ -f "$ej" ] || continue
+        log_info "Patching extensions.json paths: $ej"
+        sed -i "s|/files/mozilla/${src_name}|/files/mozilla/${dst_name}|g" "$ej" 2>/dev/null
+        sed -i "s|${src_dd}/files/mozilla/${src_name}|${dst_dd}/files/mozilla/${dst_name}|g" "$ej" 2>/dev/null
+        sed -i "s|${src_dd}/|${dst_dd}/|g" "$ej" 2>/dev/null
+        sed -i "s|${SRC}|${DST}|g" "$ej" 2>/dev/null
+    done
+    log_ok "extensions.json patched"
 
-    # UUID synchronization
+    # UUID synchronization. Read prefs.js from the same root as the package
+    # source, but always write the UUID map into the target profile prefs.
     log_info "UUID synchronization..."
     local src_prefs="${src_ext_root}/prefs.js"
-    local dst_prefs="${dst_ext_root}/prefs.js"
+    [ -f "$src_prefs" ] || src_prefs="${src_profile}/prefs.js"
+    local dst_prefs="${dst_profile}/prefs.js"
     if [ -f "$src_prefs" ]; then
         [ ! -f "$dst_prefs" ] && touch "$dst_prefs"
         for pn in "extensions.webextensions.uuids" "extensions.webextensions.ExtensionStorageIDB.enabled" "extensions.enabledScopes" "xpinstall.signatures.required"; do
@@ -503,6 +524,7 @@ main() {
             if [ -d "$sd" ]; then
                 local dn=$(basename "$sd")
                 safe_cp "$sd" "${dst_files}/storage/${base}/${dn}" "ext-idb (files): $dn"
+                safe_cp "$sd" "${dst_profile}/storage/${base}/${dn}" "ext-idb (files to profile): $dn"
                 ext_count=$((ext_count + 1))
             fi
         done
@@ -620,6 +642,11 @@ main() {
 PREFEOF
             else
                 gecko_set_pref_bool "${dst_sp}/fenix_preferences.xml" "pref_key_fxa_signed_in" "true"
+            fi
+            # v1 also copied the package-named settings file. Keep its
+            # signed-in flag consistent in case this Firefox build reads it.
+            if [ -f "${dst_sp}/${DST}_preferences.xml" ]; then
+                gecko_set_pref_bool "${dst_sp}/${DST}_preferences.xml" "pref_key_fxa_signed_in" "true"
             fi
             log_ok "Firefox Account state copied and signed-in flag synchronized"
         else
