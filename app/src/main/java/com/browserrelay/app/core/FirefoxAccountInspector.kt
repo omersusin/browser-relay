@@ -7,13 +7,20 @@ import com.browserrelay.app.root.RootHelper
  *
  * Firefox release/beta stores the Firefox Account state as plain XML in
  * `shared_prefs/fxaAppState.xml` (shared preference name `fxaAppState`, key
- * `fxaState`). Nightly/debug uses SecureAbove22Preferences and a Keystore key
- * bound to the source UID, so it cannot be transplanted between packages.
+ * `fxaState`). Nightly/debug normally uses SecureAbove22Preferences and a
+ * Keystore key bound to the source UID, which cannot be transplanted.
+ *
+ * Nightly builds often keep an older but still readable plain-text
+ * `fxaAppState.xml` next to the secure store. The first release copied that
+ * file and the account opened, so prefer it whenever it has real content.
+ * `secureOnly` is reserved for profiles that only have the undecryptable
+ * Keystore store.
  */
 data class FirefoxAccountState(
     val found: Boolean = false,
     val email: String? = null,
-    val secureOnly: Boolean = false
+    val secureOnly: Boolean = false,
+    val secureFallback: Boolean = false
 ) {
     val canTransfer: Boolean get() = found && !secureOnly
 }
@@ -26,9 +33,12 @@ object FirefoxAccountInspector {
         val plain = "$prefs/fxaAppState.xml"
         val secureA = "$prefs/fxaStateAC.xml"
         val secureB = "$prefs/fxaStatePrefAC.xml"
+        val securePost = "$prefs/fxaStateAC_kp_post_m.xml"
+        val securePre = "$prefs/fxaStateAC_kp_pre_m.xml"
 
         val hasPlain = BrowserPaths.exists(plain)
-        val hasSecure = BrowserPaths.exists(secureA) || BrowserPaths.exists(secureB)
+        val hasSecure = BrowserPaths.exists(secureA) || BrowserPaths.exists(secureB) ||
+            BrowserPaths.exists(securePost) || BrowserPaths.exists(securePre)
         val secureChannel = isSecureAccountPackage(packageName)
         val plainHasState = hasPlain && try {
             // Require actual content: an empty <string name="fxaState" /> is
@@ -42,7 +52,11 @@ object FirefoxAccountInspector {
             false
         }
 
-        if (hasSecure && (!plainHasState || secureChannel)) {
+        // Only a profile without a usable plain-text state is untransferable.
+        // Nightly keeps its secure store in `fxaStatePrefAC.xml` and
+        // `fxaStateAC_kp_*`, but a stale plain-text fxaState is still the
+        // account the target can actually read. This is what v1 copied.
+        if (hasSecure && !plainHasState) {
             return FirefoxAccountState(found = true, secureOnly = true)
         }
         if (!plainHasState) {
@@ -57,7 +71,8 @@ object FirefoxAccountInspector {
         return FirefoxAccountState(
             found = true,
             email = extractEmail(raw),
-            secureOnly = false
+            secureOnly = false,
+            secureFallback = hasSecure || secureChannel
         )
     }
 

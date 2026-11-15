@@ -432,10 +432,22 @@ main() {
     log_info "PHASE 4: EXTENSION MIGRATION"
 
     if [ "$MIGRATE_EXTENSIONS" = "1" ]; then
-    safe_cp "${src_profile}/extensions" "${dst_profile}/extensions" "extensions/"
-    safe_cp "${src_profile}/extensions.json" "${dst_profile}/extensions.json" "extensions.json"
-    safe_cp "${src_profile}/extension-preferences.json" "${dst_profile}/extension-preferences.json" "extension-preferences.json"
-    safe_cp "${src_profile}/browser-extension-data" "${dst_profile}/browser-extension-data" "browser-extension-data/"
+    # Most Fenix builds keep extensions in the active profile. A few builds
+    # and old forks keep the same files under files/ instead. Fall back to
+    # that location so an extension migration is never silently empty.
+    local src_ext_root="$src_profile"
+    local dst_ext_root="$dst_profile"
+    if [ ! -d "${src_profile}/extensions" ] && [ ! -f "${src_profile}/extensions.json" ] && \
+       { [ -d "${src_files}/extensions" ] || [ -f "${src_files}/extensions.json" ]; }; then
+        src_ext_root="$src_files"
+        dst_ext_root="$dst_files"
+        log_info "Extensions found under files/; using files/extensions"
+    fi
+
+    safe_cp "${src_ext_root}/extensions" "${dst_ext_root}/extensions" "extensions/"
+    safe_cp "${src_ext_root}/extensions.json" "${dst_ext_root}/extensions.json" "extensions.json"
+    safe_cp "${src_ext_root}/extension-preferences.json" "${dst_ext_root}/extension-preferences.json" "extension-preferences.json"
+    safe_cp "${src_ext_root}/browser-extension-data" "${dst_ext_root}/browser-extension-data" "browser-extension-data/"
 
     if [ -f "${src_profile}/storage-sync-v2.sqlite" ]; then
         safe_cp "${src_profile}/storage-sync-v2.sqlite" "${dst_profile}/storage-sync-v2.sqlite" "storage-sync (profile)"
@@ -444,19 +456,23 @@ main() {
         safe_cp "${src_files}/storage-sync-v2.sqlite" "${dst_files}/storage-sync-v2.sqlite" "storage-sync (files/)"
     fi
 
-    # extensions.json path patching
-    if [ -f "${dst_profile}/extensions.json" ]; then
+    # extensions.json path patching. Paths may be written with either
+    # /data/data or /data/user/0, and the profile directory name differs
+    # between source and target. Patch the profile segment globally so a
+    # path under /data/user/0 is not left pointing at the source profile.
+    if [ -f "${dst_ext_root}/extensions.json" ]; then
         log_info "Patching extensions.json paths..."
-        sed -i "s|${src_dd}/files/mozilla/${src_name}|${dst_dd}/files/mozilla/${dst_name}|g" "${dst_profile}/extensions.json" 2>/dev/null
-        sed -i "s|${src_dd}/|${dst_dd}/|g" "${dst_profile}/extensions.json" 2>/dev/null
-        sed -i "s|${SRC}|${DST}|g" "${dst_profile}/extensions.json" 2>/dev/null
+        sed -i "s|/files/mozilla/${src_name}|/files/mozilla/${dst_name}|g" "${dst_ext_root}/extensions.json" 2>/dev/null
+        sed -i "s|${src_dd}/files/mozilla/${src_name}|${dst_dd}/files/mozilla/${dst_name}|g" "${dst_ext_root}/extensions.json" 2>/dev/null
+        sed -i "s|${src_dd}/|${dst_dd}/|g" "${dst_ext_root}/extensions.json" 2>/dev/null
+        sed -i "s|${SRC}|${DST}|g" "${dst_ext_root}/extensions.json" 2>/dev/null
         log_ok "extensions.json patched"
     fi
 
     # UUID synchronization
     log_info "UUID synchronization..."
-    local src_prefs="${src_profile}/prefs.js"
-    local dst_prefs="${dst_profile}/prefs.js"
+    local src_prefs="${src_ext_root}/prefs.js"
+    local dst_prefs="${dst_ext_root}/prefs.js"
     if [ -f "$src_prefs" ]; then
         [ ! -f "$dst_prefs" ] && touch "$dst_prefs"
         for pn in "extensions.webextensions.uuids" "extensions.webextensions.ExtensionStorageIDB.enabled" "extensions.enabledScopes" "xpinstall.signatures.required"; do
@@ -471,17 +487,41 @@ main() {
         done
     fi
 
-    # Extension IndexedDB
-    if [ -d "${src_profile}/storage/default" ]; then
-        local ext_count=0
-        for sd in "${src_profile}/storage/default/moz-extension+++"*; do
+    # Extension IndexedDB. Firefox stores extension storage under
+    # storage/default on current builds and keeps long-lived data under
+    # storage/permanent on some versions.
+    local ext_count=0
+    for base in default permanent; do
+        for sd in "${src_profile}/storage/${base}/moz-extension+++"*; do
             if [ -d "$sd" ]; then
                 local dn=$(basename "$sd")
-                safe_cp "$sd" "${dst_profile}/storage/default/${dn}" "ext-idb: $dn"
+                safe_cp "$sd" "${dst_profile}/storage/${base}/${dn}" "ext-idb: $dn"
                 ext_count=$((ext_count + 1))
             fi
         done
-        log_ok "Extension stores: $ext_count"
+        for sd in "${src_files}/storage/${base}/moz-extension+++"*; do
+            if [ -d "$sd" ]; then
+                local dn=$(basename "$sd")
+                safe_cp "$sd" "${dst_files}/storage/${base}/${dn}" "ext-idb (files): $dn"
+                ext_count=$((ext_count + 1))
+            fi
+        done
+    done
+    log_ok "Extension stores: $ext_count"
+
+    # Make a failed extension copy visible instead of ending with a silent
+    # empty target profile.
+    local src_ext_n=0
+    local dst_ext_n=0
+    if [ -f "${src_ext_root}/extensions.json" ]; then
+        src_ext_n=$(tr ',' '\n' < "${src_ext_root}/extensions.json" 2>/dev/null | grep -c '"id"')
+    fi
+    if [ -f "${dst_ext_root}/extensions.json" ]; then
+        dst_ext_n=$(tr ',' '\n' < "${dst_ext_root}/extensions.json" 2>/dev/null | grep -c '"id"')
+    fi
+    log_info "Extension manifest entries: source=$src_ext_n target=$dst_ext_n"
+    if [ "$src_ext_n" -gt 0 ] && [ "$dst_ext_n" -eq 0 ]; then
+        log_warn "Source has $src_ext_n extension entries but the target manifest is empty; open Firefox once and check about:addons"
     fi
     else
         log_info "Extension migration disabled; target extensions preserved"
@@ -494,18 +534,20 @@ main() {
     local dst_sp="${dst_dd}/shared_prefs"
     local account_transferable=0
     if [ "$MIGRATE_ACCOUNT" = "1" ]; then
-        case "$SRC" in
-            # org.mozilla.fenix is Firefox Nightly, not a preview build. Its
-            # channel uses SecureAbove22Preferences even though the package
-            # name does not contain "nightly".
-            *nightly*|*debug*|org.mozilla.fenix) account_transferable=0 ;;
-            *)
-                if [ -f "$src_sp/fxaAppState.xml" ] && \
-                   grep -q 'name="fxaState"[^>]*>[^<]' "$src_sp/fxaAppState.xml" 2>/dev/null; then
-                    account_transferable=1
-                fi
-                ;;
-        esac
+        # The first release copied the plain-text fxaAppState.xml even from
+        # Nightly. Nightly usually keeps that file as a fallback next to its
+        # Keystore store, and it is the only account state the target can read.
+        # The package name must not block it: only a profile without a real
+        # fxaState value is untransferable.
+        if [ -f "$src_sp/fxaAppState.xml" ] && \
+           grep -q 'name="fxaState"[^>]*>[^<]' "$src_sp/fxaAppState.xml" 2>/dev/null; then
+            account_transferable=1
+            if [ -f "$src_sp/fxaStatePrefAC.xml" ] || \
+               [ -f "$src_sp/fxaStateAC_kp_post_m.xml" ] || \
+               [ -f "$src_sp/fxaStateAC_kp_pre_m.xml" ]; then
+                log_info "Nightly secure account store detected; copying its plain-text fxaAppState.xml fallback"
+            fi
+        fi
     fi
 
     if [ -d "$src_sp" ]; then
@@ -561,8 +603,8 @@ main() {
         rm -f "${dst_sp}/fxaStateAC.xml" "${dst_sp}/fxaStatePrefAC.xml" \
               "${dst_sp}/fxaStateAC_kp_post_m.xml" "${dst_sp}/fxaStateAC_kp_pre_m.xml" \
               "${dst_sp}/fxaAppState.xml.bak" "${dst_sp}/fenix_preferences.xml.bak" 2>/dev/null
-        safe_cp "$src_sp/fxaAppState.xml" "$dst_sp/fxaAppState.xml" "Firefox Account state (release/beta)"
-        for n in SyncAuthInfoCache.xml syncPrefs.xml syncEngines.xml sync.logins.prefs.xml mozac_feature_accounts_push.xml; do
+        safe_cp "$src_sp/fxaAppState.xml" "$dst_sp/fxaAppState.xml" "Firefox Account state (plain-text fallback)"
+        for n in FxaDeviceSettingsCache.xml SyncAuthInfoCache.xml syncPrefs.xml syncEngines.xml sync.logins.prefs.xml mozac_feature_accounts_push.xml; do
             [ -f "$src_sp/$n" ] && safe_cp "$src_sp/$n" "$dst_sp/$n" "sync pref: $n"
         done
         if grep -q 'name="fxaState"' "$dst_sp/fxaAppState.xml" 2>/dev/null; then

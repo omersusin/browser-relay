@@ -170,6 +170,9 @@ class DataMover(private val context: Context) {
                 kotlinPatchChromium(sourcePkg, targetPkg).forEach { if (!it.success) warnings.add(it.message) }
             } else if (engine == BrowserType.GECKO) {
                 kotlinPatchGecko(sourcePkg, targetPkg).forEach { if (!it.success) warnings.add(it.message) }
+                if (options.includeExtensions) {
+                    verifyGeckoExtensions(sourcePkg, targetPkg)?.let { warnings.add(it) }
+                }
                 if (options.copyFirefoxAccount) {
                     repairFirefoxAccount(sourcePkg, targetPkg)?.let { warnings.add(it) }
                     verifyFirefoxAccount(sourcePkg, targetPkg)?.let { warnings.add(it) }
@@ -351,6 +354,23 @@ class DataMover(private val context: Context) {
         }
     }
 
+    /**
+     * Count real extensions after the target has been patched. A source
+     * profile with extensions and an empty target manifest is the failure the
+     * user sees as "extensions did not move"; surface it instead of finishing
+     * with a green result.
+     */
+    private suspend fun verifyGeckoExtensions(srcPkg: String, dstPkg: String): String? {
+        val src = BrowserPaths.geckoProfile(srcPkg) ?: return null
+        val dst = BrowserPaths.geckoProfile(dstPkg) ?: return null
+        val source = ExtensionMigrator.collectGecko(src)
+        if (source.isEmpty()) return null
+        val target = ExtensionMigrator.collectGecko(dst)
+        if (target.isNotEmpty()) return null
+        return "Extensions: ${source.size} found in the source but none in the target. " +
+            "Open Firefox once and check about:addons; some unsigned add-ons must be enabled again."
+    }
+
     private suspend fun kotlinPatchGecko(srcPkg: String, dstPkg: String): List<JsonPatcher.PatchResult> {
         val results = mutableListOf<JsonPatcher.PatchResult>()
         val dst = BrowserPaths.geckoProfile(dstPkg)
@@ -358,20 +378,22 @@ class DataMover(private val context: Context) {
         val dstProfile = dst?.profileDir
         val srcProfile = src?.profileDir
         if (dstProfile != null && srcProfile != null) {
-            val srcExtensions = "$srcProfile/extensions.json"
-            val dstExtensions = "$dstProfile/extensions.json"
+            val srcExtRoot = geckoExtensionRoot(src) ?: srcProfile
+            val dstExtRoot = geckoExtensionRoot(dst) ?: dstProfile
+            val srcExtensions = "$srcExtRoot/extensions.json"
+            val dstExtensions = "$dstExtRoot/extensions.json"
             if (BrowserPaths.exists(srcExtensions) && BrowserPaths.exists(dstExtensions)) {
                 val result = jsonPatcher.patchGeckoExtensionsJson(
                     dstExtensions,
                     srcPkg,
                     dstPkg,
-                    srcProfile.substringAfterLast('/'),
-                    dstProfile.substringAfterLast('/')
+                    srcExtRoot.substringAfterLast('/'),
+                    dstExtRoot.substringAfterLast('/')
                 )
                 if (!result.success) results.add(result)
             }
-            val srcPrefs = "$srcProfile/prefs.js"
-            val dstPrefs = "$dstProfile/prefs.js"
+            val srcPrefs = "$srcExtRoot/prefs.js"
+            val dstPrefs = "$dstExtRoot/prefs.js"
             if (BrowserPaths.exists(srcPrefs) && BrowserPaths.exists(dstPrefs)) {
                 val result = jsonPatcher.syncGeckoUuids(srcPrefs, dstPrefs)
                 if (!result.success) results.add(result)
@@ -380,6 +402,19 @@ class DataMover(private val context: Context) {
             results.add(JsonPatcher.PatchResult(false, "Could not locate Gecko profile for $srcPkg/$dstPkg"))
         }
         return results
+    }
+
+    /**
+     * A few Fenix forks keep extensions.json/extensions under files/ instead
+     * of the active profile. Pick whichever root actually holds them so the
+     * post-copy JSON and UUID repair does not silently no-op.
+     */
+    private suspend fun geckoExtensionRoot(profile: GeckoProfile): String? {
+        val roots = listOfNotNull(profile.profileDir, profile.filesDir).distinct()
+        return roots.firstOrNull { root ->
+            BrowserPaths.exists("$root/extensions.json") ||
+                BrowserPaths.exists("$root/extensions")
+        }
     }
 
     private suspend fun findChromiumBase(pkg: String): String {

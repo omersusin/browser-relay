@@ -57,6 +57,7 @@
     <string name="account_secure">Nightly/debug account is Keystore-protected and cannot be copied</string>
     <string name="account_disabled">Turn on to keep the target signed in</string>
     <string name="account_note_release">Release and Beta store the account in a plain-text preference, so it can be moved.</string>
+    <string name="account_note_fallback">Nightly keeps a plain-text account backup. It will be copied; if the target still asks you to sign in, sign in once.</string>
     <string name="account_note_secure">Sign in once in the target. Nightly/debug tokens are bound to the source app.</string>
     <string name="account_toggle">Copy account state</string>
     <string name="account_not_applicable">Account transfer only works between Firefox-engine browsers.</string>

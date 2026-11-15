@@ -209,10 +209,22 @@ class JsonPatcher(private val context: Context) {
                 ?: return@withContext PatchResult(false, "Could not read extensions.json")
 
             var s = raw
-            val srcPath = "/data/data/$srcPkg/files/mozilla/$srcProfileName"
-            val dstPath = "/data/data/$dstPkg/files/mozilla/$dstProfileName"
-            s = s.replace(srcPath, dstPath)
-            s = s.replace("/data/data/$srcPkg/", "/data/data/$dstPkg/")
+            // Extension paths may use /data/data or /data/user/0, and the
+            // profile directory name changes between source and target.
+            for (prefix in listOf("/data/data", "/data/user/0")) {
+                s = s.replace(
+                    "$prefix/$srcPkg/files/mozilla/$srcProfileName",
+                    "$prefix/$dstPkg/files/mozilla/$dstProfileName"
+                )
+                s = s.replace("$prefix/$srcPkg/", "$prefix/$dstPkg/")
+            }
+            if (srcProfileName != dstProfileName) {
+                s = s.replace(
+                    "/files/mozilla/$srcProfileName",
+                    "/files/mozilla/$dstProfileName"
+                )
+            }
+            s = s.replace(srcPkg, dstPkg)
 
             try { JSONObject(s) }
             catch (e: Exception) {

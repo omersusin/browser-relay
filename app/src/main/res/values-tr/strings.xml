@@ -57,6 +57,7 @@
     <string name="account_secure">Nightly/debug hesabı Keystore ile korunuyor ve kopyalanamaz</string>
     <string name="account_disabled">Hedefin oturumunu açık tutmak için açın</string>
     <string name="account_note_release">Release ve Beta hesabı düz metin tercihinde saklar, bu yüzden taşınabilir.</string>
+    <string name="account_note_fallback">Nightly düz metin bir hesap yedeği tutar. Bu yedek kopyalanacak; hedef yine oturum açmanı isterse bir kez giriş yap.</string>
     <string name="account_note_secure">Hedefte bir kez oturum açın. Nightly/debug belirteçleri kaynak uygulamaya bağlıdır.</string>
     <string name="account_toggle">Hesap durumunu kopyala</string>
     <string name="account_not_applicable">Hesap aktarımı yalnızca Firefox motorlu tarayıcılar arasında çalışır.</string>

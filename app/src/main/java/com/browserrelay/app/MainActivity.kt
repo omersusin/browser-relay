@@ -715,7 +715,11 @@ class MainActivity : AppCompatActivity() {
         b.screenReview.switchAccount.isChecked = canCopy
         b.screenReview.txtReviewAccountNote.visibility = View.VISIBLE
         b.screenReview.txtReviewAccountNote.text = getString(
-            if (secure) R.string.account_note_secure else R.string.account_note_release
+            when {
+                secure -> R.string.account_note_secure
+                state?.secureFallback == true -> R.string.account_note_fallback
+                else -> R.string.account_note_release
+            }
         )
     }
 
