@@ -938,7 +938,7 @@ internal object CrossEngineConverter {
                             },
                             secure = secureIdx >= 0 && c.getInt(secureIdx) != 0,
                             httpOnly = httpIdx >= 0 && c.getInt(httpIdx) != 0,
-                            sameSite = if (sameIdx >= 0) c.getInt(sameIdx) else 0
+                            sameSite = if (sameIdx >= 0) c.getInt(sameIdx) else 256
                         )
                     )
                 }

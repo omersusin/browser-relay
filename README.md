@@ -54,10 +54,10 @@ your bookmarks and history.
 | **Bookmarks** | ✅ | ✅ | Folder structure is preserved. |
 | **History** | ✅ | ✅ | URL, title, visit count and visit times. |
 | **Passwords** | ✅* | ❌ | Engine-specific encryption; not converted cross-engine. |
-| **Cookies** | ✅ | ❌ | Engine-specific encryption; not converted cross-engine. |
-| **Extensions** | ✅* | ⚠️ | Inventory + store links + data paths. Packages/data are not cross-engine portable. |
+| **Cookies** | ✅ | ✅ | Android stores both engines' cookies as plaintext; rows are merged so website sessions survive. |
+| **Extensions** | ✅* | ⚠️ | Inventory + Chrome Web Store match + CRX download + `storage.local` conversion; the user taps Install. |
 | **Site Permissions** | ✅ | ❌ | Same-engine only. |
-| **Tabs** | ✅ | ✅ | Same-engine session files are copied; cross-engine URLs are opened in the target. |
+| **Tabs** | ✅ | ✅ | Same-engine session files are copied; cross-engine URLs are opened in the target (up to 80). |
 
 \* Same-engine password/extension migration depends on the target app using
 compatible encryption and extension IDs. Chromium passwords are tied to the
@@ -115,29 +115,36 @@ shelling out to `sqlite3`, which is missing on many Android systems.
 - **Firefox → Chromium:** reads `places.sqlite`, then merges into Chromium's
   `History` and `Bookmarks` JSON.
 - Only `http`, `https`, and `ftp` URLs are migrated.
-- Passwords and cookies are not moved between engines because their storage and
-  encryption are engine-specific.
-- Firefox Account/Sync sign-in state is Android Keystore-bound. It is deliberately
-  not copied between packages; sign in again in the target so Firefox Sync can
-  restore account data. Copying the encrypted state leaves the target signed out
-  or stuck on the account screen.
+- Cookies are moved in both directions. Android Chromium has no cookie crypto
+  delegate and Gecko stores plaintext, so the app merges the two `cookies`
+  databases instead of copying ciphertext. Firefox schema 16+ millisecond
+  expiry values, SameSite values and session cookies are converted explicitly.
+  Chrome's own Google account is managed by Android `AccountManager` and is not
+  copied; Google *website* sessions are preserved by the cookie merge.
+- Firefox Account/Sync state: Release and Beta store the account in plaintext
+  `shared_prefs/fxaAppState.xml`, which is copied to the target together with
+  the `pref_key_fxa_signed_in` flag. Nightly/debug use Keystore-bound secure
+  storage, which cannot be transplanted between package UIDs; the app warns
+  before starting in that case.
 - Same-engine open tabs are restored from the engine session files. Fenix open
-  tabs use `mozilla_components_session_storage_gecko.json`; `tabs.sqlite` alone
-  is not the live session. Cross-engine tabs are restored as URLs, so tab
-  groups, pinned state and per-tab back/forward history are not preserved. Up
-  to 30 HTTP(S) tabs are opened.
-- Extensions are inventoried, not transplanted. Chromium CRX/unpacked MV2/MV3
-  packages and Gecko XPI packages, plus their private storage, are incompatible.
-  The report gives store search links and data paths for manual reinstallation;
-  a `extension_data_*.tar.gz` archive is also exported for manual recovery.
+  tabs use `mozilla_components_session_storage_gecko.json` (with an AtomicFile
+  `.bak` fallback); `tabs.sqlite` alone is not the live session. Cross-engine
+  tabs are restored as URLs, so tab groups, pinned state and per-tab
+  back/forward history are not preserved. Up to 80 HTTP(S) tabs are opened.
+- Extensions are not transplanted as binaries. The Firefox → Chromium bridge
+  inventories source add-ons, finds a Chrome Web Store match, downloads the CRX,
+  converts Firefox `storage.local` data to Chromium LevelDB, and opens the store
+  page for the user to confirm installation. A JSON/HTML report and a data
+  archive are exported to `/data/local/tmp/browser_migrator/`.
 - After a cross-engine transfer, launch the target browser once more so it can
   finish rebuilding its caches/favicons.
 
 ---
 
 ## 🔒 Security & Privacy
-- **Local Only:** No data leaves the device. No analytics, no cloud, no internet
-  required.
+- **Local Only:** Browser data stays on the device. No analytics and no cloud
+  upload. Internet is used only when the user runs the Firefox → Chromium
+  extension bridge (Chrome Web Store search and CRX download).
 - **Input Validation:** Strict regex filtering on package names prevents shell
   injection.
 - **Controlled Execution:** Scripts run under `/data/local/tmp` and are removed
@@ -148,9 +155,9 @@ shelling out to `sqlite3`, which is missing on many Android systems.
 ---
 
 ## ⚠️ Known Limitations
-- **Cross-engine scope:** Bookmarks, history and open-tab URLs. Extension
-  packages/settings remain separate because the engines use incompatible
-  formats.
+- **Cross-engine scope:** Bookmarks, history, cookies and open-tab URLs.
+  Passwords and extension binaries remain engine-specific. The extension bridge
+  installs a matched CRX only after the user confirms it in the store UI.
 - **Shizuku/ADB:** Shizuku's ADB backend is UID 2000 and cannot read app-private
   data. Only a root-started Shizuku (UID 0) or `su` can perform the migration.
 - **Chromium passwords:** Android Keystore encryption binds them to the source
@@ -162,11 +169,16 @@ shelling out to `sqlite3`, which is missing on many Android systems.
   package-path rewriting inside SQLite databases is skipped. Cross-engine
   conversion does not depend on `sqlite3`.
 - **Tabs:** Cross-engine tabs are opened via intents, so tab grouping, pinned
-  tabs and history are not preserved. A source with more than 30 HTTP(S) tabs is
-  truncated.
-- **Extensions:** No silent cross-engine install. Store matching depends on the
-  target browser; most Android Chromium browsers do not support arbitrary
-  extensions.
+  tabs and history are not preserved. A source with more than 80 HTTP(S) tabs is
+  truncated. Duplicate URLs are opened once.
+- **Google account:** Chrome's signed-in Google account is part of Android
+  `AccountManager`; copying a Chrome profile cannot move it. Website Google
+  logins are preserved through cookies.
+- **Extensions:** No silent cross-engine install. Store matching is
+  name-based; most Android Chromium browsers do not support arbitrary
+  extensions, and Bare Browser is the recommended target.
+- **Firefox Account:** Release/Beta account state is copied. Nightly/debug
+  secure state is UID-bound and requires one sign-in in the target.
 
 ---
 

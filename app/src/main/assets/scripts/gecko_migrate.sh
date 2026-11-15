@@ -550,7 +550,8 @@ main() {
         # Remove any leftover secure store from the target. SharedPrefAccountStorage
         # migrates from SecureAbove22Preferences on startup and would otherwise
         # overwrite the state we just copied with the target's old account.
-        rm -f "${dst_sp}/fxaStateAC.xml" "${dst_sp}/fxaStatePrefAC.xml" 2>/dev/null
+        rm -f "${dst_sp}/fxaStateAC.xml" "${dst_sp}/fxaStatePrefAC.xml" \
+              "${dst_sp}/fxaAppState.xml.bak" "${dst_sp}/fenix_preferences.xml.bak" 2>/dev/null
         safe_cp "$src_sp/fxaAppState.xml" "$dst_sp/fxaAppState.xml" "Firefox Account state (release/beta)"
         for n in SyncAuthInfoCache.xml syncPrefs.xml syncEngines.xml sync.logins.prefs.xml mozac_feature_accounts_push.xml; do
             [ -f "$src_sp/$n" ] && safe_cp "$src_sp/$n" "$dst_sp/$n" "sync pref: $n"
