@@ -183,6 +183,10 @@ class CrossEngineMigrator(private val context: Context) {
                 return@withContext MigrationResult.Failure(detail, "", LOG_FILE)
             }
 
+            // Extension store pages must be opened *after* the tab restore.
+            // openInTarget force-stops the target; opening a store page
+            // earlier would silently discard it.
+            val pendingStoreUrls = mutableListOf<String>()
             val extensionSummary = if (options.includeExtensions) {
                 migrateExtensionInventory(
                     sourcePkg = sourcePkg,
@@ -194,7 +198,8 @@ class CrossEngineMigrator(private val context: Context) {
                     targetChromium = targetChromium,
                     targetGecko = targetGecko,
                     onProgress = onProgress,
-                    warnings = warnings
+                    warnings = warnings,
+                    pendingStoreUrls = pendingStoreUrls
                 )
             } else {
                 null
@@ -216,6 +221,21 @@ class CrossEngineMigrator(private val context: Context) {
                 }
             } else {
                 null
+            }
+
+            if (pendingStoreUrls.isNotEmpty()) {
+                val openedStores = openExtensionStorePages(targetPkg, pendingStoreUrls)
+                if (openedStores > 0) {
+                    warnings.add(
+                        "Opened $openedStores extension store/search page(s) in the target. " +
+                            "Tap Add to Chrome for each matching extension."
+                    )
+                } else {
+                    warnings.add(
+                        "Could not open the extension store pages automatically. " +
+                            "Use the links in the extension report."
+                    )
+                }
             }
 
             val summary = buildString {
@@ -337,7 +357,8 @@ class CrossEngineMigrator(private val context: Context) {
         targetChromium: ChromiumProfile?,
         targetGecko: GeckoProfile?,
         onProgress: suspend (MigrationResult.Progress) -> Unit,
-        warnings: MutableList<String>
+        warnings: MutableList<String>,
+        pendingStoreUrls: MutableList<String>
     ): String? {
         return try {
             val source = when (sourceEngine) {
@@ -376,7 +397,7 @@ class CrossEngineMigrator(private val context: Context) {
             ) {
                 bridgeGeckoExtensions(
                     sourceGecko, targetChromium, targetPkg, source,
-                    onProgress, warnings
+                    onProgress, warnings, pendingStoreUrls
                 )
             } else {
                 emptyList()
@@ -404,7 +425,7 @@ class CrossEngineMigrator(private val context: Context) {
                 warnings.add(
                     "Extension bridge: ${bridge.count { it.imported > 0 }} extension(s) had " +
                         "settings converted; ${bridge.count { it.crxPath != null }} CRX file(s) " +
-                        "were downloaded. Open each store page in the target and tap Add to Chrome."
+                        "were downloaded. Store pages open after the tab restore; tap Add to Chrome."
                 )
             }
             val path = htmlPath ?: jsonPath
@@ -464,9 +485,10 @@ class CrossEngineMigrator(private val context: Context) {
     }
 
     /**
-     * Resolve each source extension in the Chrome Web Store, download the CRX,
-     * convert Firefox storage.local into Chromium LevelDB, and open the store
-     * page for the final install gesture.
+     * Resolve each source extension in the Chrome Web Store, download the CRX
+     * and convert Firefox storage.local into Chromium LevelDB. Store pages are
+     * queued in [pendingStoreUrls] and opened after the tab restore, because
+     * TabMigrator force-stops the target while launching the source tabs.
      */
     private suspend fun bridgeGeckoExtensions(
         sourceGecko: GeckoProfile,
@@ -474,7 +496,8 @@ class CrossEngineMigrator(private val context: Context) {
         targetPkg: String,
         source: List<ExtensionMigrator.Extension>,
         onProgress: suspend (MigrationResult.Progress) -> Unit,
-        warnings: MutableList<String>
+        warnings: MutableList<String>,
+        pendingStoreUrls: MutableList<String>
     ): List<BridgeOutcome> {
         // Do not cap the list: a dropped extension is silent data loss. The
         // progress screen shows one extension at a time and each has its own
@@ -483,6 +506,13 @@ class CrossEngineMigrator(private val context: Context) {
         if (candidates.isEmpty()) return emptyList()
         val outcomes = mutableListOf<BridgeOutcome>()
         val publicDir = "$PUBLIC_REPORT_DIR/extensions"
+
+        // Every importData() writes a LevelDB under the target profile. The
+        // target was stopped before the migration, but be defensive: a prior
+        // step or a stray launch must not race that write.
+        RootHelper.exec(
+            "am force-stop ${BrowserPaths.q(targetPkg)} >/dev/null 2>&1 || true; sleep 1"
+        )
 
         for ((index, ext) in candidates.withIndex()) {
             emit(
@@ -512,6 +542,9 @@ class CrossEngineMigrator(private val context: Context) {
                     if (!it.isBlank()) warnings.add("${ext.name}: $it")
                 }
                 outcomes.add(outcome)
+                if (outcome.storeUrl.isNotBlank()) {
+                    pendingStoreUrls.add(outcome.storeUrl)
+                }
             }
             delay(800)
         }
@@ -529,21 +562,12 @@ class CrossEngineMigrator(private val context: Context) {
         val store = ExtensionBridge.resolveStore(ext.name)
             ?: run {
                 // Equivalent add-ons sometimes use a different store title.
-                // Open the store's search page instead of silently dropping
-                // the extension, and keep the URL in the report.
+                // Keep the search URL in the report and open it with the
+                // other store pages after the target tab restore.
                 val searchUrl = ExtensionBridge.storeSearchUrl(ext.name)
-                val opened = try {
-                    ExtensionBridge.openStore(targetPkg, searchUrl)
-                } catch (_: Exception) {
-                    false
-                }
                 return BridgeOutcome(
                     ext.name, "", ext.name, searchUrl, 0, null,
-                    if (opened) {
-                        "no exact Chrome Web Store match; opened the store search page"
-                    } else {
-                        "no exact Chrome Web Store match; open this search URL: $searchUrl"
-                    }
+                    "no exact Chrome Web Store match; a store search page will open"
                 )
             }
 
@@ -586,24 +610,11 @@ class CrossEngineMigrator(private val context: Context) {
             null
         }
 
-        val opened = try {
-            ExtensionBridge.openStore(targetPkg, store.storeUrl)
-        } catch (_: Exception) {
-            false
-        }
-        if (!opened) {
-            if (crx != null) {
-                warning = listOfNotNull(
-                    warning,
-                    "store page could not be opened; a CRX is in $publicDir and " +
-                        "/sdcard/Download for Bare's Install CRX flow"
-                ).joinToString("; ")
-            } else {
-                warning = listOfNotNull(
-                    warning,
-                    "store page could not be opened"
-                ).joinToString("; ")
-            }
+        if (crx != null) {
+            warning = listOfNotNull(
+                warning,
+                "CRX is in $publicDir and /sdcard/Download for Bare's Install CRX flow"
+            ).joinToString("; ")
         }
 
         return BridgeOutcome(
@@ -615,6 +626,29 @@ class CrossEngineMigrator(private val context: Context) {
             crxPath = crx,
             warning = warning
         )
+    }
+
+    /**
+     * Open the store/search pages after the target tab restore. Doing this
+     * earlier would be undone by TabMigrator.openInTarget(), which
+     * force-stops the target before launching the source tabs.
+     */
+    private suspend fun openExtensionStorePages(pkg: String, urls: List<String>): Int {
+        val unique = urls.filter { it.isNotBlank() }.distinct()
+        if (unique.isEmpty()) return 0
+        val commands = mutableListOf<String>()
+        unique.forEachIndexed { index, url ->
+            commands.add(
+                "am start ${if (index == 0) "-W " else ""}" +
+                    "-a android.intent.action.VIEW " +
+                    "-d ${BrowserPaths.q(url)} -p ${BrowserPaths.q(pkg)} " +
+                    ">/dev/null 2>&1 && echo STORE_OK_$index || echo STORE_FAIL_$index"
+            )
+            commands.add("sleep 0.35")
+        }
+        val result = RootHelper.execMultiple(commands)
+        return result.stdout.lineSequence()
+            .count { it.trim().startsWith("STORE_OK_") }
     }
 
     private suspend fun exportExtensionData(
