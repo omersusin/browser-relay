@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "BrowserMigrator"
+rootProject.name = "BrowserRelay"
 include(":app")

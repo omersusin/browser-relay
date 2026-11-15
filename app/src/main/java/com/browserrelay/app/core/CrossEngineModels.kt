@@ -1,4 +1,4 @@
-package com.browsermover.app.core
+package com.browserrelay.app.core
 
 /** A bookmark read from either engine, with the folder path it lived in. */
 internal data class SourceBookmark(

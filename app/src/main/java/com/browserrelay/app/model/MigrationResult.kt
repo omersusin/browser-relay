@@ -1,4 +1,4 @@
-package com.browsermover.app.model
+package com.browserrelay.app.model
 
 sealed class MigrationResult {
 

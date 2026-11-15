@@ -1,7 +1,7 @@
-package com.browsermover.app.core
+package com.browserrelay.app.core
 
 import android.database.sqlite.SQLiteDatabase
-import com.browsermover.app.root.RootHelper
+import com.browserrelay.app.root.RootHelper
 import org.json.JSONObject
 import java.nio.charset.StandardCharsets
 

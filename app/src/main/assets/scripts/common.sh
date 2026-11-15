@@ -3,7 +3,7 @@
 #  common.sh v3 — stdout/stderr separation fixed
 # ============================================================
 
-WORK_DIR="/data/local/tmp/browser_migrator"
+WORK_DIR="/data/local/tmp/browser_relay"
 LOG_FILE="${WORK_DIR}/migration.log"
 BACKUP_DIR=""
 SQLITE3_BIN=""

@@ -1,6 +1,6 @@
-package com.browsermover.app.core
+package com.browserrelay.app.core
 
-import com.browsermover.app.root.RootHelper
+import com.browserrelay.app.root.RootHelper
 import kotlinx.coroutines.delay
 import java.io.File
 

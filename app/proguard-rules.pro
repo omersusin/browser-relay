@@ -1,4 +1,4 @@
-#  Browser Migrator — ProGuard / R8 Rules
+#  Browser Relay — ProGuard / R8 Rules
 # ============================================================
 
 # JSON support
@@ -9,16 +9,16 @@
 -keepnames class kotlinx.coroutines.CoroutineExceptionHandler {}
 
 # ---- Model classes ----
--keepclassmembers class com.browsermover.app.model.** { *; }
--keep class com.browsermover.app.model.** { *; }
+-keepclassmembers class com.browserrelay.app.model.** { *; }
+-keep class com.browserrelay.app.model.** { *; }
 
 # ViewBinding
--keep class com.browsermover.app.databinding.** { *; }
+-keep class com.browserrelay.app.databinding.** { *; }
 
 # Shizuku UserService classes are loaded by name from a different process.
--keep class com.browsermover.app.root.ShellUserService { *; }
--keep class com.browsermover.app.IShellService { *; }
--keep class com.browsermover.app.IShellService$* { *; }
+-keep class com.browserrelay.app.root.ShellUserService { *; }
+-keep class com.browserrelay.app.IShellService { *; }
+-keep class com.browserrelay.app.IShellService$* { *; }
 -keep class rikka.shizuku.** { *; }
 
 # Pure-Java LevelDB/Snappy used for extension storage conversion.

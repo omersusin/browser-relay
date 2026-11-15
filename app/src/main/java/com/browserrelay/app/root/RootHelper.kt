@@ -1,4 +1,4 @@
-package com.browsermover.app.root
+package com.browserrelay.app.root
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch

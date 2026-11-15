@@ -21,6 +21,6 @@
         android:layout_height="wrap_content"
         android:layout_marginStart="8dp"
         android:layout_weight="1"
-        android:textAppearance="@style/TextAppearance.BrowserMigrator.Body"
+        android:textAppearance="@style/TextAppearance.BrowserRelay.Body"
         android:textSize="11sp" />
 </LinearLayout>

@@ -1,10 +1,10 @@
-package com.browsermover.app.core
+package com.browserrelay.app.core
 
 import android.content.Context
-import com.browsermover.app.model.BrowserInfo
-import com.browsermover.app.model.BrowserType
-import com.browsermover.app.model.MigrationResult
-import com.browsermover.app.root.RootHelper
+import com.browserrelay.app.model.BrowserInfo
+import com.browserrelay.app.model.BrowserType
+import com.browserrelay.app.model.MigrationResult
+import com.browserrelay.app.root.RootHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -13,7 +13,7 @@ import java.io.FileOutputStream
 class DataMover(private val context: Context) {
 
     companion object {
-        private const val WORK_DIR = "/data/local/tmp/browser_migrator"
+        private const val WORK_DIR = "/data/local/tmp/browser_relay"
         private const val SCRIPTS_DIR = "$WORK_DIR/scripts"
         private const val LOG_FILE = "$WORK_DIR/migration.log"
 

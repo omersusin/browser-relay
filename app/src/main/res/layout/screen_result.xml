@@ -38,7 +38,7 @@
             android:layout_marginTop="24dp"
             android:gravity="center"
             android:text="@string/result_success"
-            android:textAppearance="@style/TextAppearance.BrowserMigrator.Display"
+            android:textAppearance="@style/TextAppearance.BrowserRelay.Display"
             android:textSize="32sp" />
 
         <TextView
@@ -48,7 +48,7 @@
             android:layout_marginTop="8dp"
             android:gravity="center"
             android:text="@string/result_success_desc"
-            android:textAppearance="@style/TextAppearance.BrowserMigrator.Body"
+            android:textAppearance="@style/TextAppearance.BrowserRelay.Body"
             android:textSize="13sp" />
 
         <TextView
@@ -108,7 +108,7 @@
                         android:layout_marginStart="8dp"
                         android:layout_weight="1"
                         android:text="@string/result_warnings"
-                        android:textAppearance="@style/TextAppearance.BrowserMigrator.Label"
+                        android:textAppearance="@style/TextAppearance.BrowserRelay.Label"
                         android:textSize="13sp" />
                 </LinearLayout>
 
@@ -118,7 +118,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
                     android:text="@string/result_no_warnings"
-                    android:textAppearance="@style/TextAppearance.BrowserMigrator.Body"
+                    android:textAppearance="@style/TextAppearance.BrowserRelay.Body"
                     android:textSize="12sp"
                     android:visibility="gone" />
 
@@ -151,7 +151,7 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnResultLog"
-            style="@style/Widget.BrowserMigrator.Button.Outlined"
+            style="@style/Widget.BrowserRelay.Button.Outlined"
             android:layout_width="match_parent"
             android:layout_height="52dp"
             android:layout_marginTop="10dp"
@@ -161,7 +161,7 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnRestore"
-            style="@style/Widget.BrowserMigrator.Button.Outlined"
+            style="@style/Widget.BrowserRelay.Button.Outlined"
             android:layout_width="match_parent"
             android:layout_height="52dp"
             android:layout_marginTop="10dp"
@@ -171,7 +171,7 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnShareReport"
-            style="@style/Widget.BrowserMigrator.Button.Text"
+            style="@style/Widget.BrowserRelay.Button.Text"
             android:layout_width="match_parent"
             android:layout_height="50dp"
             android:layout_marginTop="4dp"
@@ -182,7 +182,7 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnNewMigration"
-            style="@style/Widget.BrowserMigrator.Button.Text"
+            style="@style/Widget.BrowserRelay.Button.Text"
             android:layout_width="match_parent"
             android:layout_height="52dp"
             android:layout_marginTop="6dp"

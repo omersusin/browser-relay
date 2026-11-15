@@ -1,7 +1,7 @@
-package com.browsermover.app.core
+package com.browserrelay.app.core
 
 import android.content.Context
-import com.browsermover.app.root.RootHelper
+import com.browserrelay.app.root.RootHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -10,7 +10,7 @@ import java.io.File
 class JsonPatcher(private val context: Context) {
 
     companion object {
-        private const val WORK_DIR = "/data/local/tmp/browser_migrator"
+        private const val WORK_DIR = "/data/local/tmp/browser_relay"
     }
 
     data class PatchResult(

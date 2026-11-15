@@ -1,6 +1,6 @@
-package com.browsermover.app.core
+package com.browserrelay.app.core
 
-import com.browsermover.app.model.BrowserType
+import com.browserrelay.app.model.BrowserType
 
 /** Read-only preflight information shown before a migration starts. */
 internal object BrowserInspector {

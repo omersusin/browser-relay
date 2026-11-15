@@ -1,4 +1,4 @@
-package com.browsermover.app
+package com.browserrelay.app
 
 import android.content.Intent
 import android.content.res.ColorStateList
@@ -17,25 +17,25 @@ import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.content.ContextCompat
 import androidx.core.os.LocaleListCompat
 import androidx.lifecycle.lifecycleScope
-import com.browsermover.app.core.BrowserCatalog
-import com.browsermover.app.core.BrowserInspector
-import com.browsermover.app.core.DataMover
-import com.browsermover.app.core.ExtensionMigrator
-import com.browsermover.app.core.FirefoxAccountInspector
-import com.browsermover.app.core.FirefoxAccountState
-import com.browsermover.app.core.InstalledBrowser
-import com.browsermover.app.core.MigrationOptions
-import com.browsermover.app.core.PackageValidator
-import com.browsermover.app.databinding.ActivityMainBinding
-import com.browsermover.app.databinding.ItemBrowserBinding
-import com.browsermover.app.databinding.ItemExtensionBinding
-import com.browsermover.app.databinding.ItemWarningBinding
-import com.browsermover.app.databinding.SheetBrowserPickerBinding
-import com.browsermover.app.databinding.SheetSettingsBinding
-import com.browsermover.app.model.BrowserType
-import com.browsermover.app.model.MigrationResult
-import com.browsermover.app.root.RootHelper
-import com.browsermover.app.root.ShizukuShell
+import com.browserrelay.app.core.BrowserCatalog
+import com.browserrelay.app.core.BrowserInspector
+import com.browserrelay.app.core.DataMover
+import com.browserrelay.app.core.ExtensionMigrator
+import com.browserrelay.app.core.FirefoxAccountInspector
+import com.browserrelay.app.core.FirefoxAccountState
+import com.browserrelay.app.core.InstalledBrowser
+import com.browserrelay.app.core.MigrationOptions
+import com.browserrelay.app.core.PackageValidator
+import com.browserrelay.app.databinding.ActivityMainBinding
+import com.browserrelay.app.databinding.ItemBrowserBinding
+import com.browserrelay.app.databinding.ItemExtensionBinding
+import com.browserrelay.app.databinding.ItemWarningBinding
+import com.browserrelay.app.databinding.SheetBrowserPickerBinding
+import com.browserrelay.app.databinding.SheetSettingsBinding
+import com.browserrelay.app.model.BrowserType
+import com.browserrelay.app.model.MigrationResult
+import com.browserrelay.app.root.RootHelper
+import com.browserrelay.app.root.ShizukuShell
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
@@ -54,7 +54,7 @@ class MainActivity : AppCompatActivity() {
         const val SCREEN_RESULT = 3
         const val SCREEN_EXTENSIONS = 4
 
-        const val PREFS = "browser_migrator_ui"
+        const val PREFS = "browser_relay_ui"
         const val KEY_SOURCE = "source_package"
         const val KEY_TARGET = "target_package"
     }

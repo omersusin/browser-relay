@@ -42,7 +42,7 @@
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:supportsRtl="true"
-        android:theme="@style/Theme.BrowserMigrator">
+        android:theme="@style/Theme.BrowserRelay">
 
         <activity
             android:name=".MainActivity"

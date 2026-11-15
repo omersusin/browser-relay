@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Tarayıcı Taşıyıcı</string>
+    <string name="app_name">Browser Relay</string>
     <string name="app_description">Tarayıcı verilerini root erişimiyle taşıyın.</string>
 
     <!-- Home -->
@@ -147,7 +147,7 @@
     <string name="settings_backups">Yedekler</string>
     <string name="settings_backups_count">%1$d yedek bulundu</string>
     <string name="settings_delete_backups">Tüm yedekleri sil</string>
-    <string name="settings_delete_backups_desc">Yalnızca Tarayıcı Taşıyıcı tarafından oluşturulan kopyaları siler.</string>
+    <string name="settings_delete_backups_desc">Yalnızca Browser Relay tarafından oluşturulan kopyaları siler.</string>
     <string name="settings_about">Hakkında</string>
     <string name="settings_version">Sürüm %1$s</string>
     <string name="settings_root_ready">Root hazır</string>
@@ -168,7 +168,7 @@
     <string name="no_backup">Yedek bulunamadı.</string>
     <string name="deleted_backups">%1$d yedek silindi.</string>
     <string name="report_not_found">Rapor bulunamadı.</string>
-    <string name="share_report_subject">Tarayıcı Taşıyıcı uzantı raporu</string>
+    <string name="share_report_subject">Browser Relay uzantı raporu</string>
     <string name="share_report_text">Uzantı taşıma raporu</string>
 
     <!-- Errors and status -->
@@ -182,7 +182,7 @@
     <string name="shizuku_not_installed">Shizuku yüklü değil veya çalışmıyor.</string>
     <string name="shizuku_permission_denied">Shizuku izni verilmedi.</string>
     <string name="shizuku_adb_warning">Shizuku ADB modunda (UID 2000) çalışıyor. Uygulamaya özel tarayıcı verilerini okuyamaz. Root kullanın veya Shizuku\'yu root ile başlatın.</string>
-    <string name="root_request_hint">İstendiğinde Tarayıcı Taşıyıcı uygulamasına root izni verin.</string>
+    <string name="root_request_hint">İstendiğinde Browser Relay uygulamasına root izni verin.</string>
     <string name="access_uid">UID %1$d</string>
     <string name="route_summary">%1$s → %2$s</string>
     <string name="not_available">Kullanılamıyor</string>

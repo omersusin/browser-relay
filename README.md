@@ -1,17 +1,18 @@
-# 🌐 Browser Data Migrator for Android
+# 🌐 Browser Relay for Android
 
-**The bridge for your browser data.**  
-Move bookmarks and history between Android browsers, or copy a full profile
-between two browsers that use the same engine—without cloud sync or manual
-exports.
+**Carry your browsing across engines.**
+
+Move bookmarks, history, cookies and open tabs between Android browsers, or copy
+a full profile between two browsers that use the same engine—without cloud sync
+or manual exports.
 
 ---
 
 ## 🤔 What is this?
-**Browser Data Migrator** is an open-source tool for rooted Android phones. It
-copies and patches browser data files directly, so you can move from **Firefox
-to Iceraven**, **Chrome to Brave**, or even **Chrome to Firefox** without losing
-your bookmarks and history.
+**Browser Relay** is an open-source tool for rooted Android phones. It copies
+and patches browser data files directly, so you can move from **Firefox to
+Iceraven**, **Chrome to Brave**, or even **Chrome to Firefox** without losing
+your bookmarks, history, website sessions or open tabs.
 
 > [!IMPORTANT]
 > **Root access is required** (Magisk, KernelSU, or SuperSU) to access protected
@@ -24,15 +25,14 @@ your bookmarks and history.
 - **🔀 Same-Engine Transfers:** Full profile migration between two Chromium
   browsers or two Gecko browsers.
 - **↔️ Cross-Engine Transfers:** Chromium → Gecko and Gecko → Chromium for
-  bookmarks and history, converted on-device without needing an external
-  `sqlite3` binary.
+  bookmarks, history and cookies, converted on-device without needing an
+  external `sqlite3` binary.
 - **🗂️ Open-Tab Transfer:** Reads Chromium SNSS sessions, Gecko
   `sessionstore.jsonlz4`/MozLz4 and `tabs.sqlite`, then opens the source URLs as
   new tabs in the target browser.
-- **🧩 Extension Inventory:** Lists extensions on both sides, matches names,
-  and writes an HTML/JSON report with the correct target-store search links and
-  source data paths. Cross-engine extension packages are deliberately not
-  installed automatically.
+- **🧩 Extension Bridge:** Inventories Firefox add-ons, finds a Chrome Web
+  Store match, downloads the CRX, converts `storage.local` data, and hands the
+  store page to the user for a confirmed install.
 - **🛡️ Shizuku / ADB-aware:** Optional Shizuku backend. A Shizuku server started
   with root (UID 0) can run the same privileged migration; the normal ADB
   backend (UID 2000) is detected and explained instead of silently failing.
@@ -86,7 +86,7 @@ different browser package.
 5. **Verify:** Open the target browser and check its bookmarks/history and new
    tabs. The target is opened with the source tab URLs after data conversion.
 6. **Extensions:** Open the generated `extension_report_*.html` from
-   `/data/local/tmp/browser_migrator/`. It contains target-store search links;
+   `/data/local/tmp/browser_relay/`. It contains target-store search links;
    Android Chromium builds often cannot install arbitrary extensions.
 7. **Cleanup:** Use **DELETE BACKUPS** when you no longer need the safety copies.
 
@@ -135,7 +135,7 @@ shelling out to `sqlite3`, which is missing on many Android systems.
   inventories source add-ons, finds a Chrome Web Store match, downloads the CRX,
   converts Firefox `storage.local` data to Chromium LevelDB, and opens the store
   page for the user to confirm installation. A JSON/HTML report and a data
-  archive are exported to `/data/local/tmp/browser_migrator/`.
+  archive are exported to `/data/local/tmp/browser_relay/`.
 - After a cross-engine transfer, launch the target browser once more so it can
   finish rebuilding its caches/favicons.
 
@@ -184,8 +184,8 @@ shelling out to `sqlite3`, which is missing on many Android systems.
 
 ## 🏗 Build from Source
 ```bash
-git clone https://github.com/omersusin/FirefoxTransfer.git
-cd FirefoxTransfer
+git clone https://github.com/omersusin/browser-relay.git
+cd browser-relay
 ./gradlew assembleRelease
 ```
 

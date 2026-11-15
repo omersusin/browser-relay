@@ -1,10 +1,10 @@
-package com.browsermover.app.core
+package com.browserrelay.app.core
 
 import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.drawable.Drawable
 import android.os.Build
-import com.browsermover.app.model.BrowserType
+import com.browserrelay.app.model.BrowserType
 
 /** A browser that is actually installed on the device. */
 data class InstalledBrowser(

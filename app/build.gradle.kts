@@ -4,15 +4,15 @@ plugins {
 }
 
 android {
-    namespace = "com.browsermover.app"
+    namespace = "com.browserrelay.app"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.browsermover.app"
+        applicationId = "com.browserrelay.app"
         minSdk = 24
         targetSdk = 34
-        versionCode = 6
-        versionName = "2.0.0"
+        versionCode = 7
+        versionName = "2.1.0"
     }
 
     signingConfigs {

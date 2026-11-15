@@ -1,4 +1,4 @@
-package com.browsermover.app.core
+package com.browserrelay.app.core
 
 import android.content.ContentValues
 import android.database.Cursor

@@ -116,7 +116,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:text="@string/home_title"
-                            android:textAppearance="@style/TextAppearance.BrowserMigrator.Display"
+                            android:textAppearance="@style/TextAppearance.BrowserRelay.Display"
                             android:textSize="34sp" />
 
                         <TextView
@@ -124,7 +124,7 @@
                             android:layout_height="wrap_content"
                             android:layout_marginTop="8dp"
                             android:text="@string/home_subtitle"
-                            android:textAppearance="@style/TextAppearance.BrowserMigrator.Body"
+                            android:textAppearance="@style/TextAppearance.BrowserRelay.Body"
                             android:textSize="13sp" />
                     </LinearLayout>
 
@@ -172,7 +172,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="@string/access_checking"
-                        android:textAppearance="@style/TextAppearance.BrowserMigrator.Label"
+                        android:textAppearance="@style/TextAppearance.BrowserRelay.Label"
                         android:textColor="@color/md_on_surface"
                         android:textSize="14sp" />
 
@@ -182,13 +182,13 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="2dp"
                         android:text="@string/access_missing_desc"
-                        android:textAppearance="@style/TextAppearance.BrowserMigrator.Body"
+                        android:textAppearance="@style/TextAppearance.BrowserRelay.Body"
                         android:textSize="12sp" />
                 </LinearLayout>
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnAccess"
-                    style="@style/Widget.BrowserMigrator.Button.Text"
+                    style="@style/Widget.BrowserRelay.Button.Text"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/action_retry"
@@ -204,7 +204,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="26dp"
             android:text="@string/choose_browsers"
-            android:textAppearance="@style/TextAppearance.BrowserMigrator.Title"
+            android:textAppearance="@style/TextAppearance.BrowserRelay.Title"
             android:textSize="17sp" />
 
         <com.google.android.material.card.MaterialCardView
@@ -263,7 +263,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="2dp"
                         android:text="@string/no_browser_selected"
-                        android:textAppearance="@style/TextAppearance.BrowserMigrator.Title"
+                        android:textAppearance="@style/TextAppearance.BrowserRelay.Title"
                         android:textSize="18sp" />
 
                     <TextView
@@ -352,7 +352,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="2dp"
                         android:text="@string/no_browser_selected"
-                        android:textAppearance="@style/TextAppearance.BrowserMigrator.Title"
+                        android:textAppearance="@style/TextAppearance.BrowserRelay.Title"
                         android:textSize="18sp" />
 
                     <TextView
@@ -409,7 +409,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="@string/route_pick_both"
-                        android:textAppearance="@style/TextAppearance.BrowserMigrator.Label"
+                        android:textAppearance="@style/TextAppearance.BrowserRelay.Label"
                         android:textColor="@color/md_on_primary_container"
                         android:textSize="14sp" />
 
@@ -432,7 +432,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="26dp"
             android:text="@string/what_moves"
-            android:textAppearance="@style/TextAppearance.BrowserMigrator.Title"
+            android:textAppearance="@style/TextAppearance.BrowserRelay.Title"
             android:textSize="17sp" />
 
         <LinearLayout
@@ -467,7 +467,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="12dp"
                         android:text="@string/move_bookmarks"
-                        android:textAppearance="@style/TextAppearance.BrowserMigrator.Label"
+                        android:textAppearance="@style/TextAppearance.BrowserRelay.Label"
                         android:textSize="13sp" />
 
                     <TextView
@@ -475,7 +475,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="2dp"
                         android:text="@string/move_bookmarks_desc"
-                        android:textAppearance="@style/TextAppearance.BrowserMigrator.Body"
+                        android:textAppearance="@style/TextAppearance.BrowserRelay.Body"
                         android:textSize="11sp" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
@@ -506,7 +506,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="12dp"
                         android:text="@string/move_site_data"
-                        android:textAppearance="@style/TextAppearance.BrowserMigrator.Label"
+                        android:textAppearance="@style/TextAppearance.BrowserRelay.Label"
                         android:textSize="13sp" />
 
                     <TextView
@@ -514,7 +514,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="2dp"
                         android:text="@string/move_site_data_desc"
-                        android:textAppearance="@style/TextAppearance.BrowserMigrator.Body"
+                        android:textAppearance="@style/TextAppearance.BrowserRelay.Body"
                         android:textSize="11sp" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
@@ -552,7 +552,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="12dp"
                         android:text="@string/move_tabs"
-                        android:textAppearance="@style/TextAppearance.BrowserMigrator.Label"
+                        android:textAppearance="@style/TextAppearance.BrowserRelay.Label"
                         android:textSize="13sp" />
 
                     <TextView
@@ -560,7 +560,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="2dp"
                         android:text="@string/move_tabs_desc"
-                        android:textAppearance="@style/TextAppearance.BrowserMigrator.Body"
+                        android:textAppearance="@style/TextAppearance.BrowserRelay.Body"
                         android:textSize="11sp" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
@@ -591,7 +591,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="12dp"
                         android:text="@string/move_extensions"
-                        android:textAppearance="@style/TextAppearance.BrowserMigrator.Label"
+                        android:textAppearance="@style/TextAppearance.BrowserRelay.Label"
                         android:textSize="13sp" />
 
                     <TextView
@@ -599,7 +599,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="2dp"
                         android:text="@string/move_extensions_desc"
-                        android:textAppearance="@style/TextAppearance.BrowserMigrator.Body"
+                        android:textAppearance="@style/TextAppearance.BrowserRelay.Body"
                         android:textSize="11sp" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
@@ -647,7 +647,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="@string/account_title"
-                        android:textAppearance="@style/TextAppearance.BrowserMigrator.Label"
+                        android:textAppearance="@style/TextAppearance.BrowserRelay.Label"
                         android:textSize="14sp" />
 
                     <TextView
@@ -656,7 +656,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="2dp"
                         android:text="@string/account_unknown"
-                        android:textAppearance="@style/TextAppearance.BrowserMigrator.Body"
+                        android:textAppearance="@style/TextAppearance.BrowserRelay.Body"
                         android:textSize="12sp" />
                 </LinearLayout>
 
@@ -686,7 +686,7 @@
             android:layout_marginTop="12dp"
             android:gravity="center"
             android:text="@string/backup_desc"
-            android:textAppearance="@style/TextAppearance.BrowserMigrator.Body"
+            android:textAppearance="@style/TextAppearance.BrowserRelay.Body"
             android:textSize="11sp" />
 
     </LinearLayout>

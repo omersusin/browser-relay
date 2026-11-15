@@ -5,7 +5,7 @@
 # ============================================================
 SCRIPT_DIR="$(cd "$(dirname "$0")" 2>/dev/null && pwd)"
 if [ -z "$SCRIPT_DIR" ]; then
-    SCRIPT_DIR="/data/local/tmp/browser_migrator/scripts"
+    SCRIPT_DIR="/data/local/tmp/browser_relay/scripts"
 fi
 . "${SCRIPT_DIR}/common.sh"
 

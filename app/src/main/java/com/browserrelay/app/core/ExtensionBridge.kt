@@ -1,6 +1,6 @@
-package com.browsermover.app.core
+package com.browserrelay.app.core
 
-import com.browsermover.app.root.RootHelper
+import com.browserrelay.app.root.RootHelper
 import org.iq80.leveldb.CompressionType
 import org.iq80.leveldb.impl.Iq80DBFactory
 import org.iq80.leveldb.Options

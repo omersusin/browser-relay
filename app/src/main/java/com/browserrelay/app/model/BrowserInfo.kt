@@ -1,4 +1,4 @@
-package com.browsermover.app.model
+package com.browserrelay.app.model
 
 enum class BrowserType { GECKO, CHROMIUM, UNKNOWN }
 

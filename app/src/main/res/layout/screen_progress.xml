@@ -29,7 +29,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="26dp"
             android:text="@string/progress_title"
-            android:textAppearance="@style/TextAppearance.BrowserMigrator.Display"
+            android:textAppearance="@style/TextAppearance.BrowserRelay.Display"
             android:textSize="34sp" />
 
         <TextView
@@ -37,7 +37,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="6dp"
             android:text="@string/progress_subtitle"
-            android:textAppearance="@style/TextAppearance.BrowserMigrator.Body"
+            android:textAppearance="@style/TextAppearance.BrowserRelay.Body"
             android:textSize="13sp" />
 
         <com.google.android.material.loadingindicator.LoadingIndicator
@@ -59,7 +59,7 @@
             android:layout_marginTop="22dp"
             android:gravity="center"
             android:text="@string/progress_percent"
-            android:textAppearance="@style/TextAppearance.BrowserMigrator.Display"
+            android:textAppearance="@style/TextAppearance.BrowserRelay.Display"
             android:textColor="@color/md_on_background"
             android:textSize="48sp" />
 
@@ -69,7 +69,7 @@
             android:layout_height="wrap_content"
             android:gravity="center"
             android:text="@string/progress_preparing"
-            android:textAppearance="@style/TextAppearance.BrowserMigrator.Title"
+            android:textAppearance="@style/TextAppearance.BrowserRelay.Title"
             android:textSize="16sp" />
 
         <TextView
@@ -79,7 +79,7 @@
             android:layout_marginTop="4dp"
             android:gravity="center"
             android:text="@string/progress_step"
-            android:textAppearance="@style/TextAppearance.BrowserMigrator.Body"
+            android:textAppearance="@style/TextAppearance.BrowserRelay.Body"
             android:textSize="12sp" />
 
         <com.google.android.material.progressindicator.LinearProgressIndicator
@@ -103,7 +103,7 @@
             android:maxLines="2"
             android:ellipsize="end"
             android:text="@string/do_not_close"
-            android:textAppearance="@style/TextAppearance.BrowserMigrator.Body"
+            android:textAppearance="@style/TextAppearance.BrowserRelay.Body"
             android:textSize="11sp" />
 
         <com.google.android.material.card.MaterialCardView
@@ -137,12 +137,12 @@
                         android:layout_marginStart="10dp"
                         android:layout_weight="1"
                         android:text="@string/log_title"
-                        android:textAppearance="@style/TextAppearance.BrowserMigrator.Label"
+                        android:textAppearance="@style/TextAppearance.BrowserRelay.Label"
                         android:textSize="13sp" />
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnToggleLog"
-                        style="@style/Widget.BrowserMigrator.Button.Text"
+                        style="@style/Widget.BrowserRelay.Button.Text"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="@string/log_show" />
@@ -161,7 +161,7 @@
                         android:id="@+id/txtLog"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:textAppearance="@style/TextAppearance.BrowserMigrator.Mono"
+                        android:textAppearance="@style/TextAppearance.BrowserRelay.Mono"
                         android:textIsSelectable="true" />
                 </ScrollView>
             </LinearLayout>

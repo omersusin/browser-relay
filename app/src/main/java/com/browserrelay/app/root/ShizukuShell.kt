@@ -1,11 +1,11 @@
-package com.browsermover.app.root
+package com.browserrelay.app.root
 
 import android.content.ComponentName
 import android.content.Context
 import android.content.ServiceConnection
 import android.content.pm.PackageManager
 import android.os.IBinder
-import com.browsermover.app.IShellService
+import com.browserrelay.app.IShellService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
@@ -24,7 +24,7 @@ import kotlin.coroutines.resume
  */
 object ShizukuShell {
     private const val REQUEST_CODE = 1001
-    private const val TAG = "browser_migrator_shell"
+    private const val TAG = "browser_relay_shell"
 
     private var appContext: Context? = null
     private var service: IShellService? = null
@@ -163,7 +163,7 @@ object ShizukuShell {
         try {
             val raw = svc.exec(command) ?: return@withContext null
             val firstLine = raw.lineSequence().firstOrNull().orEmpty()
-            val exit = firstLine.removePrefix("MIGRATOR_EXIT:").toIntOrNull() ?: -1
+            val exit = firstLine.removePrefix("RELAY_EXIT:").toIntOrNull() ?: -1
             val output = raw.substringAfter('\n', "")
             CommandResult(
                 exitCode = exit,

@@ -1,9 +1,9 @@
-package com.browsermover.app.core
+package com.browserrelay.app.core
 
 import android.content.Context
-import com.browsermover.app.model.BrowserType
-import com.browsermover.app.model.MigrationResult
-import com.browsermover.app.root.RootHelper
+import com.browserrelay.app.model.BrowserType
+import com.browserrelay.app.model.MigrationResult
+import com.browserrelay.app.root.RootHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeoutOrNull
@@ -23,8 +23,8 @@ import java.util.Locale
 class CrossEngineMigrator(private val context: Context) {
 
     companion object {
-        private const val WORK_DIR = "/data/local/tmp/browser_migrator"
-        private const val PUBLIC_REPORT_DIR = "/sdcard/Download/BrowserDataMigrator"
+        private const val WORK_DIR = "/data/local/tmp/browser_relay"
+        private const val PUBLIC_REPORT_DIR = "/sdcard/Download/BrowserRelay"
         private const val LOG_FILE = "$WORK_DIR/migration.log"
     }
 

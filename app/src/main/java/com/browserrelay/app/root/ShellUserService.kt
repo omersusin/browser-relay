@@ -1,6 +1,6 @@
-package com.browsermover.app.root
+package com.browserrelay.app.root
 
-import com.browsermover.app.IShellService
+import com.browserrelay.app.IShellService
 import java.util.concurrent.TimeUnit
 import kotlin.system.exitProcess
 
@@ -21,12 +21,12 @@ class ShellUserService : IShellService.Stub() {
             val finished = process.waitFor(600, TimeUnit.SECONDS)
             if (!finished) {
                 process.destroyForcibly()
-                "MIGRATOR_EXIT:-1\nCommand timed out\n"
+                "RELAY_EXIT:-1\nCommand timed out\n"
             } else {
-                "MIGRATOR_EXIT:${process.exitValue()}\n$output"
+                "RELAY_EXIT:${process.exitValue()}\n$output"
             }
         } catch (e: Exception) {
-            "MIGRATOR_EXIT:-1\n${e.message ?: "shell error"}\n"
+            "RELAY_EXIT:-1\n${e.message ?: "shell error"}\n"
         }
     }
 

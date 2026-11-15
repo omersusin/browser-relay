@@ -1,6 +1,6 @@
-package com.browsermover.app.core
+package com.browserrelay.app.core
 
-import com.browsermover.app.root.RootHelper
+import com.browserrelay.app.root.RootHelper
 
 /**
  * Reads only the small, non-secret account metadata needed by the UI.

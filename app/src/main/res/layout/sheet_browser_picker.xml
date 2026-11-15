@@ -19,7 +19,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/pick_browser"
-            android:textAppearance="@style/TextAppearance.BrowserMigrator.Headline"
+            android:textAppearance="@style/TextAppearance.BrowserRelay.Headline"
             android:textSize="24sp" />
 
         <TextView
@@ -27,7 +27,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
             android:text="@string/installed_browsers"
-            android:textAppearance="@style/TextAppearance.BrowserMigrator.Body"
+            android:textAppearance="@style/TextAppearance.BrowserRelay.Body"
             android:textSize="12sp" />
 
         <LinearLayout
@@ -42,7 +42,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="18dp"
             android:text="@string/other_package"
-            android:textAppearance="@style/TextAppearance.BrowserMigrator.Label"
+            android:textAppearance="@style/TextAppearance.BrowserRelay.Label"
             android:textSize="12sp" />
 
         <com.google.android.material.textfield.TextInputLayout
@@ -75,7 +75,7 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnCancelPicker"
-            style="@style/Widget.BrowserMigrator.Button.Text"
+            style="@style/Widget.BrowserRelay.Button.Text"
             android:layout_width="match_parent"
             android:layout_height="48dp"
             android:layout_marginTop="4dp"

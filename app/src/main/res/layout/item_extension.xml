@@ -48,7 +48,7 @@
                     android:id="@+id/txtExtName"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:textAppearance="@style/TextAppearance.BrowserMigrator.Label"
+                    android:textAppearance="@style/TextAppearance.BrowserRelay.Label"
                     android:textSize="14sp" />
 
                 <TextView
@@ -56,7 +56,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="2dp"
-                    android:textAppearance="@style/TextAppearance.BrowserMigrator.Body"
+                    android:textAppearance="@style/TextAppearance.BrowserRelay.Body"
                     android:textSize="10sp" />
             </LinearLayout>
 
@@ -78,13 +78,13 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="10dp"
-            android:textAppearance="@style/TextAppearance.BrowserMigrator.Mono"
+            android:textAppearance="@style/TextAppearance.BrowserRelay.Mono"
             android:textSize="9sp"
             android:visibility="gone" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnExtStore"
-            style="@style/Widget.BrowserMigrator.Button.Text"
+            style="@style/Widget.BrowserRelay.Button.Text"
             android:layout_width="wrap_content"
             android:layout_height="44dp"
             android:layout_marginTop="4dp"

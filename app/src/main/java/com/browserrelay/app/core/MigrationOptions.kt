@@ -1,4 +1,4 @@
-package com.browsermover.app.core
+package com.browserrelay.app.core
 
 /**
  * User-selectable parts of a migration.
