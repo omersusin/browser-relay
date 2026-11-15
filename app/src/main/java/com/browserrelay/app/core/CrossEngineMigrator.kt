@@ -476,7 +476,10 @@ class CrossEngineMigrator(private val context: Context) {
         onProgress: suspend (MigrationResult.Progress) -> Unit,
         warnings: MutableList<String>
     ): List<BridgeOutcome> {
-        val candidates = source.filter { it.enabled }.take(6)
+        // Do not cap the list: a dropped extension is silent data loss. The
+        // progress screen shows one extension at a time and each has its own
+        // 90-second timeout, so a large profile degrades gracefully.
+        val candidates = source.filter { it.enabled }.distinctBy { it.id }
         if (candidates.isEmpty()) return emptyList()
         val outcomes = mutableListOf<BridgeOutcome>()
         val publicDir = "$PUBLIC_REPORT_DIR/extensions"
@@ -524,10 +527,25 @@ class CrossEngineMigrator(private val context: Context) {
         warnings: MutableList<String>
     ): BridgeOutcome {
         val store = ExtensionBridge.resolveStore(ext.name)
-            ?: return BridgeOutcome(
-                ext.name, "", ext.name, "", 0, null,
-                "no Chrome Web Store match was found"
-            )
+            ?: run {
+                // Equivalent add-ons sometimes use a different store title.
+                // Open the store's search page instead of silently dropping
+                // the extension, and keep the URL in the report.
+                val searchUrl = ExtensionBridge.storeSearchUrl(ext.name)
+                val opened = try {
+                    ExtensionBridge.openStore(targetPkg, searchUrl)
+                } catch (_: Exception) {
+                    false
+                }
+                return BridgeOutcome(
+                    ext.name, "", ext.name, searchUrl, 0, null,
+                    if (opened) {
+                        "no exact Chrome Web Store match; opened the store search page"
+                    } else {
+                        "no exact Chrome Web Store match; open this search URL: $searchUrl"
+                    }
+                )
+            }
 
         // Read source storage before touching the target.
         val storage = try {
@@ -575,10 +593,10 @@ class CrossEngineMigrator(private val context: Context) {
         }
         if (!opened) {
             if (crx != null) {
-                ExtensionBridge.tryInstallCrx(targetPkg, crx)
                 warning = listOfNotNull(
                     warning,
-                    "store page could not be opened; a CRX is in $publicDir"
+                    "store page could not be opened; a CRX is in $publicDir and " +
+                        "/sdcard/Download for Bare's Install CRX flow"
                 ).joinToString("; ")
             } else {
                 warning = listOfNotNull(
@@ -758,7 +776,7 @@ class CrossEngineMigrator(private val context: Context) {
         val bookmarksJson = CrossEngineConverter.mergeChromiumBookmarks(
             targetBookmarksRaw, data.bookmarks
         )
-        if (!writeTextToTarget(bookmarksJson, target.bookmarks, targetPkg)) {
+        if (!writeTextToTarget(bookmarksJson.json, target.bookmarks, targetPkg)) {
             return ConversionResult(false, "Could not write the target Bookmarks file")
         }
         // Without checksum Chromium rebuilds it, but only if an old .bak does
@@ -772,7 +790,12 @@ class CrossEngineMigrator(private val context: Context) {
 
         return ConversionResult(
             true,
-            "${imported.message} ${data.bookmarks.size} bookmarks were merged into Chrome.",
+            "${imported.message} ${bookmarksJson.added} new bookmark(s) were merged into Chrome" +
+                if (bookmarksJson.skipped > 0) {
+                    " (${bookmarksJson.skipped} already existed)."
+                } else {
+                    "."
+                },
             warnings
         )
     }
@@ -830,6 +853,14 @@ class CrossEngineMigrator(private val context: Context) {
                 return
             }
             warnings.add(result.message)
+            val googleCookies = CrossEngineConverter.googleAuthCookieCount(read.cookies)
+            if (googleCookies > 0) {
+                warnings.add(
+                    "Google sign-in cookies: $googleCookies were included in the import. " +
+                        "Open google.com in Firefox and verify the session; Chrome's Android " +
+                        "account itself is managed by Android and is not copied."
+                )
+            }
             if (read.encryptedSkipped > 0) {
                 warnings.add(
                     "${read.encryptedSkipped} encrypted Chrome cookie(s) were skipped; " +
@@ -890,6 +921,14 @@ class CrossEngineMigrator(private val context: Context) {
                 return
             }
             warnings.add(result.message)
+            val googleCookies = CrossEngineConverter.googleAuthCookieCount(read.cookies)
+            if (googleCookies > 0) {
+                warnings.add(
+                    "Google sign-in cookies: $googleCookies were included in the import. " +
+                        "Open google.com in Chrome and verify the session; Firefox's Android " +
+                        "account itself is managed by Android and is not copied."
+                )
+            }
         } catch (e: Exception) {
             warnings.add("Cookie transfer failed: ${e.message}")
         }

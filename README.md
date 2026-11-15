@@ -123,9 +123,10 @@ shelling out to `sqlite3`, which is missing on many Android systems.
   copied; Google *website* sessions are preserved by the cookie merge.
 - Firefox Account/Sync state: Release and Beta store the account in plaintext
   `shared_prefs/fxaAppState.xml`, which is copied to the target together with
-  the `pref_key_fxa_signed_in` flag. Nightly/debug use Keystore-bound secure
-  storage, which cannot be transplanted between package UIDs; the app warns
-  before starting in that case.
+  the `pref_key_fxa_signed_in` flag. Nightly (`org.mozilla.fenix`) and debug
+  builds use Keystore-bound secure storage, which cannot be transplanted
+  between package UIDs; the app detects that before starting and keeps the
+  account toggle off.
 - Same-engine open tabs are restored from the engine session files. Fenix open
   tabs use `mozilla_components_session_storage_gecko.json` (with an AtomicFile
   `.bak` fallback); `tabs.sqlite` alone is not the live session. Cross-engine

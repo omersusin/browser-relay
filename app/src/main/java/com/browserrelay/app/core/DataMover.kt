@@ -93,7 +93,7 @@ class DataMover(private val context: Context) {
 
             if (!RootHelper.checkRoot()) {
                 return@withContext MigrationResult.Failure(
-                    "Root access is required. Grant root permission to Browser Data Migrator, " +
+                    "Root access is required. Grant root permission to Browser Relay, " +
                         "or use a Shizuku server started with root (Shizuku's ADB/UID 2000 backend " +
                         "cannot read app-private browser data)."
                 )
@@ -171,6 +171,7 @@ class DataMover(private val context: Context) {
             } else if (engine == BrowserType.GECKO) {
                 kotlinPatchGecko(sourcePkg, targetPkg).forEach { if (!it.success) warnings.add(it.message) }
                 if (options.copyFirefoxAccount) {
+                    repairFirefoxAccount(sourcePkg, targetPkg)?.let { warnings.add(it) }
                     verifyFirefoxAccount(sourcePkg, targetPkg)?.let { warnings.add(it) }
                 }
             }
@@ -269,11 +270,58 @@ class DataMover(private val context: Context) {
     }
 
     /**
-     * The migration script copies the account store, but a stale secure-store
-     * file or an interrupted write can still leave the target with no usable
-     * account. Surface that instead of showing a green result the user has to
-     * discover the problem by opening Firefox.
+     * The shell script copies fxaAppState.xml, but a failed cp/chown or a
+     * leftover Keystore file on the target can still leave the account card
+     * signed out. Retry the small, plaintext part in Kotlin once the heavy
+     * profile copy has finished. Secure Nightly/debug state is UID-bound and
+     * is intentionally never touched here.
      */
+    private suspend fun repairFirefoxAccount(srcPkg: String, dstPkg: String): String? {
+        val source = FirefoxAccountInspector.inspect(srcPkg)
+        if (!source.found || source.secureOnly) return null
+        // Always rewrite the plaintext state from the source. The target may
+        // already contain its own account (or a half-copied file), and leaving
+        // it in place would silently keep the wrong account signed in.
+
+        val srcData = BrowserPaths.dataDir(srcPkg) ?: return null
+        val dstData = BrowserPaths.dataDir(dstPkg) ?: return null
+        val srcPrefs = "$srcData/shared_prefs"
+        val dstPrefs = "$dstData/shared_prefs"
+        val srcFile = "$srcPrefs/fxaAppState.xml"
+        if (!BrowserPaths.exists(srcFile)) return null
+
+        val dstFile = "$dstPrefs/fxaAppState.xml"
+        val targetUid = BrowserPaths.uid(dstPkg)
+        val prefsFile = "$dstPrefs/fenix_preferences.xml"
+        val commands = mutableListOf(
+            "mkdir -p ${BrowserPaths.q(dstPrefs)} 2>/dev/null || true",
+            "cp -f ${BrowserPaths.q(srcFile)} ${BrowserPaths.q(dstFile)} 2>/dev/null",
+            // A target secure store wins over the plaintext one in the
+            // inspector and can hide the transplanted account.
+            "rm -f ${BrowserPaths.q("$dstPrefs/fxaStateAC.xml")} " +
+                "${BrowserPaths.q("$dstPrefs/fxaStatePrefAC.xml")} 2>/dev/null || true",
+            "if [ -f ${BrowserPaths.q(prefsFile)} ]; then " +
+                "sed -i 's/name=\"pref_key_fxa_signed_in\" value=\"false\"/" +
+                "name=\"pref_key_fxa_signed_in\" value=\"true\"/' " +
+                "${BrowserPaths.q(prefsFile)} 2>/dev/null || true; fi"
+        )
+        if (!targetUid.isNullOrBlank()) {
+            commands.add(
+                "chown ${targetUid}:${targetUid} ${BrowserPaths.q(dstFile)} 2>/dev/null || true"
+            )
+        }
+        commands.add("chmod 660 ${BrowserPaths.q(dstFile)} 2>/dev/null || true")
+        RootHelper.execMultiple(commands)
+
+        val after = FirefoxAccountInspector.inspect(dstPkg)
+        return if (after.found && !after.secureOnly) {
+            null
+        } else {
+            "Firefox Account: the copied plaintext state is still missing in the target. " +
+                "Open Firefox once; if it shows signed out, sign in (the rest of the data is intact)."
+        }
+    }
+
     private suspend fun verifyFirefoxAccount(srcPkg: String, dstPkg: String): String? {
         val target = FirefoxAccountInspector.inspect(dstPkg)
         val source = FirefoxAccountInspector.inspect(srcPkg)

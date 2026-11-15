@@ -76,16 +76,27 @@ internal object ExtensionBridge {
             extensionIdFromUrl(match.value)?.let { ids.add(it) }
         }
 
-        for (id in ids.take(5)) {
+        for (id in ids.take(8)) {
             val storeUrl = "https://chromewebstore.google.com/detail/$id"
             val title = storeTitle(id) ?: continue
             if (namesMatch(name, title)) {
                 return StoreMatch(id, title, storeUrl)
             }
         }
-        return ids.firstOrNull()?.let { id ->
-            StoreMatch(id, storeTitle(id) ?: name, "https://chromewebstore.google.com/detail/$id")
+        // Never fall back to the first search hit: a wrong extension ID would
+        // write Firefox data into another extension's LevelDB, which is worse
+        // than reporting that no counterpart was found.
+        return null
+    }
+
+    /** Open the store's own search when there is no exact name match. */
+    fun storeSearchUrl(name: String): String {
+        val encoded = try {
+            URLEncoder.encode(name, "UTF-8")
+        } catch (_: Exception) {
+            name.replace(" ", "+")
         }
+        return "https://chromewebstore.google.com/search/$encoded"
     }
 
     private fun extensionIdFromUrl(url: String): String? {
@@ -160,7 +171,12 @@ internal object ExtensionBridge {
                 "mkdir -p ${BrowserPaths.q(publicDir)} 2>/dev/null || true",
                 "cp -f ${BrowserPaths.q(temp.absolutePath)} " +
                     "${BrowserPaths.q("$publicDir/$safe.crx")} 2>/dev/null || true",
-                "chmod 644 ${BrowserPaths.q("$publicDir/$safe.crx")} 2>/dev/null || true"
+                // A copy in the shared Download root is easier to pick from
+                // Bare's file chooser and from any generic file manager.
+                "cp -f ${BrowserPaths.q(temp.absolutePath)} " +
+                    "${BrowserPaths.q("/sdcard/Download/$safe.crx")} 2>/dev/null || true",
+                "chmod 644 ${BrowserPaths.q("$publicDir/$safe.crx")} " +
+                    "${BrowserPaths.q("/sdcard/Download/$safe.crx")} 2>/dev/null || true"
             ))
             temp.delete()
             return if (BrowserPaths.exists("$publicDir/$safe.crx")) {
@@ -182,21 +198,6 @@ internal object ExtensionBridge {
     suspend fun openStore(pkg: String, url: String): Boolean {
         val result = RootHelper.exec(
             "am start -a android.intent.action.VIEW -d ${BrowserPaths.q(url)} " +
-                "-p ${BrowserPaths.q(pkg)} >/dev/null 2>&1"
-        )
-        return result.success
-    }
-
-    /**
-     * Try to hand the downloaded CRX to the target browser. Many Chromium
-     * builds ignore this, in which case the file remains in Downloads and the
-     * user can use Bare's "Install CRX" button.
-     */
-    suspend fun tryInstallCrx(pkg: String, path: String): Boolean {
-        val result = RootHelper.exec(
-            "am start -a android.intent.action.VIEW " +
-                "-d ${BrowserPaths.q("file://$path")} " +
-                "-t application/x-chrome-extension " +
                 "-p ${BrowserPaths.q(pkg)} >/dev/null 2>&1"
         )
         return result.success

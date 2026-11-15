@@ -601,8 +601,7 @@ internal object CrossEngineConverter {
 
             return ConversionResult(
                 true,
-                "Imported ${data.bookmarks.size} bookmarks and $importedVisits history visits " +
-                    "($importedPlaces URLs).",
+                "Imported $importedVisits history visits ($importedPlaces URLs).",
                 emptyList()
             )
         } catch (e: Exception) {
@@ -694,10 +693,16 @@ internal object CrossEngineConverter {
     //  Chromium Bookmarks JSON
     // ------------------------------------------------------------------
 
+    data class BookmarkMergeResult(
+        val json: String,
+        val added: Int,
+        val skipped: Int
+    )
+
     fun mergeChromiumBookmarks(
         targetRaw: String?,
         bookmarks: List<SourceBookmark>
-    ): String {
+    ): BookmarkMergeResult {
         val root = try {
             if (targetRaw.isNullOrBlank()) JSONObject() else JSONObject(targetRaw)
         } catch (_: Exception) {
@@ -712,12 +717,14 @@ internal object CrossEngineConverter {
         var nextId = maxOf(3L, maxChromiumId(root)) + 1
         val existingUrls = mutableSetOf<String>()
         collectChromiumUrls(root, existingUrls)
+        var added = 0
 
         fun add(bookmark: SourceBookmark, parent: JSONObject) {
             if (!existingUrls.add(bookmark.url)) return
             val children = parent.optJSONArray("children")
                 ?: JSONArray().also { parent.put("children", it) }
             children.put(chromiumUrlJson(bookmark, nextId++))
+            added++
         }
 
         for (bookmark in bookmarks) {
@@ -737,7 +744,11 @@ internal object CrossEngineConverter {
         root.put("version", 1)
         root.remove("checksum")
         root.remove("checksum_sha256")
-        return root.toString(2)
+        return BookmarkMergeResult(
+            root.toString(2),
+            added,
+            (bookmarks.size - added).coerceAtLeast(0)
+        )
     }
 
     fun emptyChromiumBookmarks(): String {
@@ -1082,18 +1093,28 @@ internal object CrossEngineConverter {
                         values.put("value", cookie.value)
                         values.put("encrypted_value", ByteArray(0))
                         values.put("path", cookie.path)
-                        val persistent = cookie.expiryEpochSeconds > 0
+                        // Firefox persists session cookies, while Chromium
+                        // marks them as non-persistent and drops them on exit.
+                        // Give imported session cookies the same 30-day window
+                        // used in the opposite direction so a Google/site
+                        // session does not disappear when Chrome is closed
+                        // right after migration.
+                        val expirySeconds = if (cookie.expiryEpochSeconds > 0) {
+                            cookie.expiryEpochSeconds
+                        } else {
+                            nowSeconds + 30L * 24L * 60L * 60L
+                        }
                         values.put(
                             "expires_utc",
-                            if (persistent) cookie.expiryEpochSeconds * 1_000_000 + CHROME_EPOCH_OFFSET else 0L
+                            expirySeconds * 1_000_000 + CHROME_EPOCH_OFFSET
                         )
                         values.put("is_secure", if (cookie.secure) 1 else 0)
                         values.put("is_httponly", if (cookie.httpOnly) 1 else 0)
                         values.put("creation_utc", nowChrome)
                         values.put("last_access_utc", nowChrome)
                         values.put("last_update_utc", nowChrome)
-                        values.put("has_expires", if (persistent) 1 else 0)
-                        values.put("is_persistent", if (persistent) 1 else 0)
+                        values.put("has_expires", 1)
+                        values.put("is_persistent", 1)
                         values.put("priority", 1)
                         values.put("samesite", geckoSameSiteToChrome(cookie.sameSite))
                         values.put("source_scheme", if (cookie.secure) 2 else 1)
@@ -1130,6 +1151,27 @@ internal object CrossEngineConverter {
         if (cookie.host.any { it.isWhitespace() }) return false
         if (cookie.path.isBlank()) return false
         return cookie.expiryEpochSeconds <= 0 || cookie.expiryEpochSeconds > nowSeconds
+    }
+
+    /**
+     * Google keeps its web sign-in in a small set of cookies. The Android
+     * AccountManager entry is not copied, but these cookies are what make
+     * google.com and YouTube open already signed in after a move. Counting
+     * them lets the result screen tell the user what to verify instead of
+     * silently claiming that every account was transferred.
+     */
+    fun googleAuthCookieCount(cookies: List<SourceCookie>): Int {
+        val authNames = setOf(
+            "SID", "HSID", "SSID", "APISID", "SAPISID", "LSID",
+            "__Secure-1PSID", "__Secure-3PSID",
+            "__Secure-1PAPISID", "__Secure-3PAPISID"
+        )
+        return cookies.count { cookie ->
+            val host = cookie.host.trimStart('.').lowercase()
+            val googleHost = host == "google.com" || host.endsWith(".google.com") ||
+                host == "youtube.com" || host.endsWith(".youtube.com")
+            googleHost && cookie.name in authNames
+        }
     }
 
     private fun chromeCookieExpiryToUnix(value: Long): Long =

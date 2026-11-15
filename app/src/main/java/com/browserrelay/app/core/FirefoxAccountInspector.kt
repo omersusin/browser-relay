@@ -29,8 +29,7 @@ object FirefoxAccountInspector {
 
         val hasPlain = BrowserPaths.exists(plain)
         val hasSecure = BrowserPaths.exists(secureA) || BrowserPaths.exists(secureB)
-        val secureChannel = packageName.contains("nightly", ignoreCase = true) ||
-            packageName.contains("debug", ignoreCase = true)
+        val secureChannel = isSecureAccountPackage(packageName)
         val plainHasState = hasPlain && try {
             RootHelper.exec(
                 "grep -q 'name=\"fxaState\"' ${BrowserPaths.q(plain)} 2>/dev/null && echo YES || echo NO"
@@ -56,6 +55,20 @@ object FirefoxAccountInspector {
             email = extractEmail(raw),
             secureOnly = false
         )
+    }
+
+    /**
+     * Firefox Nightly's package is `org.mozilla.fenix` (the word "nightly"
+     * does not appear in it). Its build channel enables SecureAbove22Prefs.
+     * Debug builds and forks with "nightly"/"debug" in the package use the
+     * same UID-bound store.
+     */
+    private fun isSecureAccountPackage(packageName: String): Boolean {
+        val pkg = packageName.lowercase()
+        return pkg == "org.mozilla.fenix" ||
+            pkg == "org.mozilla.fenix.nightly" ||
+            pkg.contains("nightly") ||
+            pkg.contains("debug")
     }
 
     private suspend fun findDataDir(packageName: String): String? {

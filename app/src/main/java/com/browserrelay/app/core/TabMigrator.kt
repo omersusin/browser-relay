@@ -213,6 +213,17 @@ internal object TabMigrator {
                 return ReadResult(emptyList(), "Not a Chromium SNSS session file.")
             }
             val version = r.u32() ?: return ReadResult(emptyList(), "Truncated SNSS header.")
+            if (version == 5L) {
+                // Chrome 148+ can write OSCrypt-encrypted session files. The
+                // key is bound to Chrome's UID/Keystore, so another app (even
+                // with root) cannot decrypt them. The cleartext Sessions/
+                // directory is still written by the default "write both"
+                // rollout stage; collectChromium reads that copy first.
+                return ReadResult(
+                    emptyList(),
+                    "Chromium session is encrypted (SNSS v5); the cleartext copy was not available."
+                )
+            }
             if (version != 1L && version != 3L) {
                 return ReadResult(emptyList(), "Unsupported SNSS version $version.")
             }
@@ -244,7 +255,9 @@ internal object TabMigrator {
                         tab(tabs, tabId).position = index
                     }
                     6 -> { // kCommandUpdateTabNavigation
-                        p.u32() // pickled payload length
+                        // Payload: tab_id, navigation index, URL (string8),
+                        // title (string16), ... There is no Pickle header or
+                        // nested payload-length field inside the command.
                         val tabId = p.u32() ?: continue
                         val historyIndex = p.u32()?.toInt() ?: continue
                         val url = p.string8() ?: continue
@@ -381,10 +394,43 @@ internal object TabMigrator {
         for (i in 0 until tuples.length()) {
             val tuple = tuples.optJSONObject(i) ?: continue
             val session = tuple.optJSONObject("session") ?: continue
-            val url = session.optString("url", "")
+            var url = session.optString("url", "")
+            var title = session.optString("title", "")
+
+            // session.url is the tab's top-level URL, but it can be a
+            // moz-extension reader page or about:blank while the current page
+            // lives in Gecko's serialized history. Prefer the real entry.
+            val geckoState = tuple.optJSONObject("engineSession")
+                ?.optString("GECKO_STATE", "")
+                .orEmpty()
+            if (geckoState.isNotBlank()) {
+                try {
+                    val history = JSONObject(geckoState).optJSONObject("history")
+                    val entries = history?.optJSONArray("entries")
+                    if (entries != null && entries.length() > 0) {
+                        val requested = history?.optInt("index", entries.length() - 1)
+                            ?: (entries.length() - 1)
+                        val entry = entries.optJSONObject(
+                            requested.coerceIn(0, entries.length() - 1)
+                        )
+                        val stateUrl = entry?.optString("url", "").orEmpty()
+                        if (isImportableUrl(stateUrl)) {
+                            url = stateUrl
+                            title = entry?.optString("title", title).orEmpty()
+                        }
+                    }
+                } catch (_: Exception) {
+                    // Keep the top-level session URL if the opaque state is
+                    // from a newer/older Gecko version.
+                }
+            }
+
+            val readerUrl = session.optString("readerModeArticleUrl", "")
+            if (isImportableUrl(readerUrl)) {
+                url = readerUrl
+            }
             if (!isImportableUrl(url)) continue
             val id = session.optString("uuid", "")
-            val title = session.optString("title", "")
             result.add(
                 OpenTab(
                     url = url,

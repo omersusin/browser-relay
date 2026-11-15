@@ -1,6 +1,6 @@
 #!/system/bin/sh
 # ============================================================
-#  gecko_migrate.sh v8
+#  gecko_migrate.sh v9
 #  Fenix fix: DBs and tabs under files/
 # ============================================================
 SCRIPT_DIR="$(cd "$(dirname "$0")" 2>/dev/null && pwd)"
@@ -493,10 +493,17 @@ main() {
     local src_sp="${src_dd}/shared_prefs"
     local dst_sp="${dst_dd}/shared_prefs"
     local account_transferable=0
-    if [ "$MIGRATE_ACCOUNT" = "1" ] && [ -f "$src_sp/fxaAppState.xml" ]; then
+    if [ "$MIGRATE_ACCOUNT" = "1" ]; then
         case "$SRC" in
-            *nightly*|*debug*) account_transferable=0 ;;
-            *) account_transferable=1 ;;
+            # org.mozilla.fenix is Firefox Nightly, not a preview build. Its
+            # channel uses SecureAbove22Preferences even though the package
+            # name does not contain "nightly".
+            *nightly*|*debug*|org.mozilla.fenix) account_transferable=0 ;;
+            *)
+                if [ -f "$src_sp/fxaAppState.xml" ]; then
+                    account_transferable=1
+                fi
+                ;;
         esac
     fi
 
