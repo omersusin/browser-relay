@@ -107,6 +107,57 @@ resolve_data_dir() {
     return 0
 }
 
+# Pick the profile Firefox actually uses. The first Path= entry is not
+# necessarily the active profile after an update or a beta/nightly switch.
+# Prefer [Install*] Default=, then the [ProfileN] marked Default=1, then the
+# profile whose places.sqlite was modified most recently.
+gecko_profile_from_ini() {
+    local ini="$1" mozilla="$2"
+    [ -f "$ini" ] || return 1
+
+    local inst def candidate
+    inst=$(awk '
+        /^\[/ { sec=$0; next }
+        sec ~ /^\[Install/ && /^Default=/ { sub(/^Default=/, ""); print; exit }
+    ' "$ini" 2>/dev/null)
+    def=$(awk '
+        /^\[/ { sec=$0; path=""; next }
+        /^Path=/ { path=substr($0, 6) }
+        sec ~ /^\[Profile[0-9]+\]/ && /^Default=1$/ { print path; exit }
+    ' "$ini" 2>/dev/null)
+
+    for candidate in "$inst" "$def"; do
+        [ -n "$candidate" ] || continue
+        case "$candidate" in
+            /*)
+                if [ -d "$candidate" ]; then
+                    printf '%s\n' "$candidate"
+                    return 0
+                fi
+                ;;
+            *)
+                if [ -d "${mozilla}/${candidate}" ]; then
+                    printf '%s\n' "${mozilla}/${candidate}"
+                    return 0
+                fi
+                ;;
+        esac
+    done
+
+    local best="" best_t=0 d t
+    for d in "$mozilla"/*/; do
+        [ -d "$d" ] || continue
+        t=0
+        [ -f "${d}places.sqlite" ] && t=$(stat -c %Y "${d}places.sqlite" 2>/dev/null || echo 0)
+        if [ "$t" -gt "$best_t" ] 2>/dev/null; then
+            best_t="$t"
+            best="${d%/}"
+        fi
+    done
+    [ -n "$best" ] && printf '%s\n' "$best" && return 0
+    return 1
+}
+
 find_gecko_profile() {
     local pkg="$1"
     G_PROFILE=""
@@ -122,10 +173,10 @@ find_gecko_profile() {
         log_info "files/mozilla/ found"
 
         if [ -f "$mozilla_dir/profiles.ini" ]; then
-            local ini_path
-            ini_path=$(grep "^Path=" "$mozilla_dir/profiles.ini" 2>/dev/null | head -1 | cut -d= -f2 | tr -d '\r\n ')
-            if [ -n "$ini_path" ] && [ -d "$mozilla_dir/$ini_path" ]; then
-                G_PROFILE="$mozilla_dir/$ini_path"
+            local ini_profile
+            ini_profile=$(gecko_profile_from_ini "$mozilla_dir/profiles.ini" "$mozilla_dir" 2>/dev/null)
+            if [ -n "$ini_profile" ] && [ -d "$ini_profile" ]; then
+                G_PROFILE="$ini_profile"
                 log_ok "Profile (profiles.ini): $G_PROFILE"
                 return 0
             fi
@@ -239,6 +290,9 @@ main() {
     log_info "  Source: $SRC"
     log_info "  Target: $DST"
     log_info "  Options: account=$MIGRATE_ACCOUNT extensions=$MIGRATE_EXTENSIONS tabs=$MIGRATE_TABS"
+    log_info "  Android: $(getprop ro.build.version.release 2>/dev/null) (SDK $(getprop ro.build.version.sdk 2>/dev/null))"
+    log_info "  UID: $(id 2>/dev/null)"
+    log_info "  SELinux: $(getenforce 2>/dev/null || echo unknown)"
     log_info "============================================"
 
     check_root
@@ -266,7 +320,25 @@ main() {
     fi
     log_ok "Source profile: $src_profile"
     log_ok "Source files: $src_files"
+    log_info "Source UID: $(get_uid "$SRC") Target UID: $(get_uid "$DST")"
     local src_name=$(basename "$src_profile")
+
+    local ini="${src_files}/mozilla/profiles.ini"
+    if [ -f "$ini" ]; then
+        log_info "Source profiles.ini:"
+        while IFS= read -r line; do
+            log_info "  ini| $line"
+        done < "$ini"
+    fi
+    log_info "Source key files:"
+    for n in places.sqlite cookies.sqlite tabs.sqlite prefs.js extensions.json; do
+        for d in "$src_files" "$src_profile"; do
+            if [ -f "${d}/${n}" ]; then
+                log_info "  $(stat -c %s "${d}/${n}" 2>/dev/null || echo '?') bytes  ${d}/${n}"
+                break
+            fi
+        done
+    done
 
     check_disk "$src_files"
 
@@ -285,6 +357,23 @@ main() {
     log_ok "Target profile: $dst_profile"
     log_ok "Target files: $dst_files"
     local dst_name=$(basename "$dst_profile")
+
+    local dst_ini="${dst_files}/mozilla/profiles.ini"
+    if [ -f "$dst_ini" ]; then
+        log_info "Target profiles.ini:"
+        while IFS= read -r line; do
+            log_info "  ini| $line"
+        done < "$dst_ini"
+    fi
+    log_info "Target key files:"
+    for n in places.sqlite cookies.sqlite tabs.sqlite prefs.js extensions.json; do
+        for d in "$dst_files" "$dst_profile"; do
+            if [ -f "${d}/${n}" ]; then
+                log_info "  $(stat -c %s "${d}/${n}" 2>/dev/null || echo '?') bytes  ${d}/${n}"
+                break
+            fi
+        done
+    done
 
     G_SRC_PROFILE="$src_profile"
     G_SRC_FILES="$src_files"
@@ -554,6 +643,13 @@ main() {
 
     local src_sp="${src_dd}/shared_prefs"
     local dst_sp="${dst_dd}/shared_prefs"
+    log_info "Source account files:"
+    if [ -d "$src_sp" ]; then
+        for f in "$src_sp"/fxa*.xml "$src_sp"/Fxa*.xml "$src_sp"/sync*.xml "$src_sp"/Sync*.xml; do
+            [ -f "$f" ] || continue
+            log_info "  $(stat -c %s "$f" 2>/dev/null || echo '?') bytes  $(basename "$f")"
+        done
+    fi
     local account_transferable=0
     if [ "$MIGRATE_ACCOUNT" = "1" ]; then
         # The first release copied the plain-text fxaAppState.xml even from
@@ -685,6 +781,15 @@ PREFEOF
 
     # ==== PHASE 7: Cleanup ====
     log_info "PHASE 7: CLEANUP"
+    log_info "Post-copy target files:"
+    for n in places.sqlite cookies.sqlite tabs.sqlite prefs.js extensions.json; do
+        for d in "$dst_files" "$dst_profile"; do
+            if [ -f "${d}/${n}" ]; then
+                log_info "  $(stat -c %s "${d}/${n}" 2>/dev/null || echo '?') bytes  ${d}/${n}"
+                break
+            fi
+        done
+    done
     rm -f  "${dst_profile}/addonStartup.json.lz4" 2>/dev/null
     rm -rf "${dst_profile}/startupCache" 2>/dev/null
     rm -f  "${dst_profile}/compatibility.ini" 2>/dev/null

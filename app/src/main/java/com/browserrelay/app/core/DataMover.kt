@@ -16,6 +16,7 @@ class DataMover(private val context: Context) {
         private const val WORK_DIR = "/data/local/tmp/browser_relay"
         private const val SCRIPTS_DIR = "$WORK_DIR/scripts"
         private const val LOG_FILE = "$WORK_DIR/migration.log"
+        private const val PUBLIC_LOG_DIR = "/sdcard/Download/BrowserRelay"
 
         private val SCRIPT_FILES = listOf(
             "scripts/common.sh",
@@ -179,9 +180,15 @@ class DataMover(private val context: Context) {
                 }
             }
 
+            exportDiagnostics(sourcePkg, targetPkg, exitCode, errors, warnings, logLines)
             buildResult(exitCode, errors, warnings, logLines)
 
         } catch (e: Exception) {
+            exportDiagnostics(
+                sourcePkg, targetPkg, -1,
+                listOf(e.message ?: e.javaClass.simpleName),
+                emptyList(), emptyList()
+            )
             MigrationResult.Failure("Error: ${e.message}", e.stackTraceToString().take(1000), LOG_FILE)
         }
     }
@@ -459,6 +466,65 @@ class DataMover(private val context: Context) {
             fi"""
         )
         return r.stdout.trim()
+    }
+
+    /**
+     * 2.1.3 could only show the log in a dialog, which is hard to copy from a
+     * phone. Write the same information to shared storage, together with the
+     * profile paths and source/target file sizes needed to tell "copied to an
+     * inactive profile" apart from "the migration did not run at all".
+     */
+    private suspend fun exportDiagnostics(
+        srcPkg: String,
+        dstPkg: String,
+        exit: Int,
+        errs: List<String>,
+        warns: List<String>,
+        lines: List<String>
+    ) {
+        val access = try { RootHelper.accessLabel() } catch (_: Exception) { "unknown" }
+        val srcData = try { BrowserPaths.dataDir(srcPkg) } catch (_: Exception) { null }
+        val dstData = try { BrowserPaths.dataDir(dstPkg) } catch (_: Exception) { null }
+        val srcGecko = try { BrowserPaths.geckoProfile(srcPkg) } catch (_: Exception) { null }
+        val dstGecko = try { BrowserPaths.geckoProfile(dstPkg) } catch (_: Exception) { null }
+        val srcAccount = try { FirefoxAccountInspector.inspect(srcPkg) } catch (_: Exception) { null }
+        val dstAccount = try { FirefoxAccountInspector.inspect(dstPkg) } catch (_: Exception) { null }
+
+        val text = buildString {
+            appendLine("=== Browser Relay diagnostics ===")
+            appendLine("time=${System.currentTimeMillis()}")
+            appendLine("source=$srcPkg")
+            appendLine("target=$dstPkg")
+            appendLine("exit=$exit")
+            appendLine("access=$access")
+            appendLine("sourceData=$srcData")
+            appendLine("targetData=$dstData")
+            appendLine("sourceProfile=${srcGecko?.profileDir}")
+            appendLine("targetProfile=${dstGecko?.profileDir}")
+            appendLine("sourcePlaces=${srcGecko?.placesDb}")
+            appendLine("targetPlaces=${dstGecko?.placesDb}")
+            appendLine("sourceAccountFound=${srcAccount?.found} secureOnly=${srcAccount?.secureOnly}")
+            appendLine("targetAccountFound=${dstAccount?.found} secureOnly=${dstAccount?.secureOnly}")
+            appendLine("errors=${errs.size} warnings=${warns.size} lines=${lines.size}")
+            appendLine("--- warnings ---")
+            warns.take(40).forEach { appendLine(it.take(500)) }
+            appendLine("--- log tail ---")
+            lines.takeLast(120).forEach { appendLine(it.take(500)) }
+        }
+        val tmp = File(context.cacheDir, "browser_relay_diagnostic.txt")
+        try { tmp.writeText(text) } catch (_: Exception) { }
+        try {
+            RootHelper.execMultiple(
+                listOf(
+                    "mkdir -p '$PUBLIC_LOG_DIR' 2>/dev/null || true",
+                    "cp -f '${tmp.absolutePath}' '$PUBLIC_LOG_DIR/diagnostic-latest.txt' 2>/dev/null || true",
+                    "cp -f '$LOG_FILE' '$PUBLIC_LOG_DIR/migration-latest.log' 2>/dev/null || true",
+                    "chmod 644 '$PUBLIC_LOG_DIR/diagnostic-latest.txt' " +
+                        "'$PUBLIC_LOG_DIR/migration-latest.log' 2>/dev/null || true"
+                )
+            )
+        } catch (_: Exception) { }
+        try { tmp.delete() } catch (_: Exception) { }
     }
 
     private fun progressPct(p: Int, e: BrowserType) = if (e == BrowserType.GECKO) intArrayOf(12,22,45,70,85,92).getOrElse(p){92} else intArrayOf(8,22,38,52,62,75,85,92).getOrElse(p){95}

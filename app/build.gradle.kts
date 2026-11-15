@@ -11,8 +11,8 @@ android {
         applicationId = "com.browserrelay.app"
         minSdk = 24
         targetSdk = 34
-        versionCode = 10
-        versionName = "2.1.3"
+        versionCode = 11
+        versionName = "2.1.4"
     }
 
     signingConfigs {

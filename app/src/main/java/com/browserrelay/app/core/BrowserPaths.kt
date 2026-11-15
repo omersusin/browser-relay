@@ -168,21 +168,70 @@ object BrowserPaths {
         else -> "app_chrome"
     }
 
+    /**
+     * Firefox writes several profiles over time. Always using the first
+     * Path= in profiles.ini can copy data into a profile the browser no
+     * longer opens. Prefer the [Install*] default, then the profile marked
+     * Default=1, then the profile with the newest places.sqlite.
+     */
+    private suspend fun selectGeckoProfile(mozilla: String, ini: String): String? {
+        if (!exists(ini)) return null
+
+        val text = RootHelper.exec("cat ${q(ini)} 2>/dev/null").stdout
+        var section = ""
+        var currentPath = ""
+        var installDefault = ""
+        var profileDefault = ""
+        for (raw in text.lineSequence()) {
+            val line = raw.trim()
+            if (line.startsWith("[") && line.endsWith("]")) {
+                section = line
+                currentPath = ""
+                continue
+            }
+            if (line.startsWith("Path=")) {
+                currentPath = line.substringAfter('=').trim()
+            }
+            if (section.startsWith("[Install") && line.startsWith("Default=")) {
+                installDefault = line.substringAfter('=').trim()
+            }
+            if (section.startsWith("[Profile") && line == "Default=1") {
+                profileDefault = currentPath
+            }
+        }
+
+        for (candidate in listOf(installDefault, profileDefault)) {
+            if (candidate.isBlank()) continue
+            val path = if (candidate.startsWith("/")) candidate else "$mozilla/$candidate"
+            if (exists(path)) return path
+        }
+
+        val dirs = RootHelper.exec(
+            "find ${q(mozilla)} -mindepth 1 -maxdepth 1 -type d 2>/dev/null"
+        ).outputLines.filter { it.startsWith("/") }
+        if (dirs.isEmpty()) return null
+
+        var best: String? = null
+        var bestTime = -1L
+        for (dir in dirs) {
+            val time = RootHelper.exec(
+                "stat -c %Y ${q("$dir/places.sqlite")} 2>/dev/null"
+            ).stdout.trim().toLongOrNull() ?: 0L
+            if (time > bestTime) {
+                bestTime = time
+                best = dir
+            }
+        }
+        return best
+    }
+
     suspend fun geckoProfile(pkg: String): GeckoProfile? {
         val dd = dataDir(pkg) ?: return null
         val files = "$dd/files"
         val mozilla = "$files/mozilla"
 
-        var profile: String? = null
         val ini = "$mozilla/profiles.ini"
-        if (exists(ini)) {
-            val path = RootHelper.exec(
-                "grep -m1 '^Path=' ${q(ini)} 2>/dev/null | cut -d= -f2- | tr -d '\\r'"
-            ).stdout.trim()
-            if (path.isNotEmpty() && exists("$mozilla/$path")) {
-                profile = "$mozilla/$path"
-            }
-        }
+        var profile = selectGeckoProfile(mozilla, ini)
 
         if (profile == null && exists(mozilla)) {
             val dirs = RootHelper.exec(

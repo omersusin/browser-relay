@@ -38,7 +38,9 @@ object RootHelper {
      * nsenter -t 1 -m enters PID 1's (init) mount namespace.
      */
     private const val ENTER_GLOBAL_NS =
-        "command -v nsenter >/dev/null 2>&1 && exec nsenter -t 1 -m -- /system/bin/sh"
+        "if command -v nsenter >/dev/null 2>&1; then " +
+            "nsenter -t 1 -m -- /system/bin/true >/dev/null 2>&1 && " +
+            "exec nsenter -t 1 -m -- /system/bin/sh; fi"
 
     @Volatile private var suChecked: Boolean? = null
 

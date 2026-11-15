@@ -5,6 +5,7 @@
 
 WORK_DIR="/data/local/tmp/browser_relay"
 LOG_FILE="${WORK_DIR}/migration.log"
+PUBLIC_LOG_DIR="${PUBLIC_LOG_DIR:-/sdcard/Download/BrowserRelay}"
 BACKUP_DIR=""
 SQLITE3_BIN=""
 
@@ -13,11 +14,24 @@ SQLITE3_BIN=""
 #  Since it's merged with 2>&1 on the Kotlin side,
 #  the user sees everything.
 # ============================================================
+# The app can show this log, but a normal user cannot copy it out of
+# /data/local/tmp. Mirror it to shared storage so a failed migration can be
+# diagnosed without adb or a root file manager.
+export_log() {
+    [ -f "$LOG_FILE" ] || return 0
+    mkdir -p "$PUBLIC_LOG_DIR" 2>/dev/null || true
+    cp -f "$LOG_FILE" "${PUBLIC_LOG_DIR}/migration-latest.log" 2>/dev/null || true
+    cp -f "$LOG_FILE" "${PUBLIC_LOG_DIR}/migration-$(date +%Y%m%d_%H%M%S 2>/dev/null || echo unknown).log" 2>/dev/null || true
+    chmod 644 "${PUBLIC_LOG_DIR}/migration-latest.log" 2>/dev/null || true
+    chmod 644 "${PUBLIC_LOG_DIR}"/migration-*.log 2>/dev/null || true
+}
+
 log_init() {
     mkdir -p "$WORK_DIR" 2>/dev/null
     BACKUP_DIR="${WORK_DIR}/backup_$(date +%Y%m%d_%H%M%S 2>/dev/null || echo unknown)"
     mkdir -p "$BACKUP_DIR" 2>/dev/null
     echo "=== Migration Log — $(date) ===" > "$LOG_FILE" 2>/dev/null
+    trap export_log EXIT
 }
 
 log_info() {
@@ -155,7 +169,11 @@ stop_pkg() {
     log_info "Stopping: $1"
     am force-stop "$1" 2>/dev/null
     sleep 1
-    log_ok "Stopped: $1"
+    if command -v pidof >/dev/null 2>&1 && pidof "$1" >/dev/null 2>&1; then
+        log_warn "Still running after force-stop: $1 (copy may be overwritten)"
+    else
+        log_ok "Stopped: $1"
+    fi
 }
 
 # Browsers flush their live session and preference stores from onStop().
@@ -170,7 +188,11 @@ graceful_stop_pkg() {
     sleep 3
     am force-stop "$1" 2>/dev/null
     sleep 1
-    log_ok "Stopped after flush: $1"
+    if command -v pidof >/dev/null 2>&1 && pidof "$1" >/dev/null 2>&1; then
+        log_warn "Still running after flush: $1"
+    else
+        log_ok "Stopped after flush: $1"
+    fi
 }
 
 # ============================================================
