@@ -556,7 +556,19 @@ main() {
             [ -f "$src_sp/$n" ] && safe_cp "$src_sp/$n" "$dst_sp/$n" "sync pref: $n"
         done
         if grep -q 'name="fxaState"' "$dst_sp/fxaAppState.xml" 2>/dev/null; then
-            gecko_set_pref_bool "${dst_sp}/fenix_preferences.xml" "pref_key_fxa_signed_in" "true"
+            if [ ! -f "${dst_sp}/fenix_preferences.xml" ]; then
+                # A very fresh target may not have created its settings file
+                # yet. Without this flag Fenix draws the account card as
+                # signed out even though fxaState is present.
+                cat > "${dst_sp}/fenix_preferences.xml" <<'PREFEOF'
+<?xml version='1.0' encoding='utf-8' standalone='yes' ?>
+<map>
+    <boolean name="pref_key_fxa_signed_in" value="true" />
+</map>
+PREFEOF
+            else
+                gecko_set_pref_bool "${dst_sp}/fenix_preferences.xml" "pref_key_fxa_signed_in" "true"
+            fi
             log_ok "Firefox Account state copied and signed-in flag synchronized"
         else
             # Never claim signed-in without a state, or Fenix shows an empty
