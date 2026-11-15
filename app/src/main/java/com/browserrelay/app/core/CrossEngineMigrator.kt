@@ -854,11 +854,11 @@ class CrossEngineMigrator(private val context: Context) {
             }
             warnings.add(result.message)
             val googleCookies = CrossEngineConverter.googleAuthCookieCount(read.cookies)
-            if (googleCookies > 0) {
+            if (googleCookies > 0 && result.imported > 0) {
                 warnings.add(
                     "Google sign-in cookies: $googleCookies were included in the import. " +
-                        "Open google.com in Firefox and verify the session; Chrome's Android " +
-                        "account itself is managed by Android and is not copied."
+                        "Open google.com in Firefox and verify the session. Google's Android " +
+                        "account is not copied; Firefox Account sign-in is handled separately."
                 )
             }
             if (read.encryptedSkipped > 0) {
@@ -922,11 +922,11 @@ class CrossEngineMigrator(private val context: Context) {
             }
             warnings.add(result.message)
             val googleCookies = CrossEngineConverter.googleAuthCookieCount(read.cookies)
-            if (googleCookies > 0) {
+            if (googleCookies > 0 && result.imported > 0) {
                 warnings.add(
                     "Google sign-in cookies: $googleCookies were included in the import. " +
-                        "Open google.com in Chrome and verify the session; Firefox's Android " +
-                        "account itself is managed by Android and is not copied."
+                        "Open google.com in Chrome and verify the session. Google's Android " +
+                        "account is not copied; Chrome can use the device account separately."
                 )
             }
         } catch (e: Exception) {

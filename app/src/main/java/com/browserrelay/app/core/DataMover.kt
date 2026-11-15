@@ -299,7 +299,10 @@ class DataMover(private val context: Context) {
             // A target secure store wins over the plaintext one in the
             // inspector and can hide the transplanted account.
             "rm -f ${BrowserPaths.q("$dstPrefs/fxaStateAC.xml")} " +
-                "${BrowserPaths.q("$dstPrefs/fxaStatePrefAC.xml")} 2>/dev/null || true",
+                "${BrowserPaths.q("$dstPrefs/fxaStatePrefAC.xml")} " +
+                "${BrowserPaths.q("$dstPrefs/fxaStateAC_kp_post_m.xml")} " +
+                "${BrowserPaths.q("$dstPrefs/fxaStateAC_kp_pre_m.xml")} " +
+                "2>/dev/null || true",
             "if [ -f ${BrowserPaths.q(prefsFile)} ]; then " +
                 "sed -i 's/name=\"pref_key_fxa_signed_in\" value=\"false\"/" +
                 "name=\"pref_key_fxa_signed_in\" value=\"true\"/' " +
@@ -307,10 +310,21 @@ class DataMover(private val context: Context) {
         )
         if (!targetUid.isNullOrBlank()) {
             commands.add(
-                "chown ${targetUid}:${targetUid} ${BrowserPaths.q(dstFile)} 2>/dev/null || true"
+                "chown ${targetUid}:${targetUid} ${BrowserPaths.q(dstFile)} " +
+                    "${BrowserPaths.q(prefsFile)} 2>/dev/null || true"
             )
         }
-        commands.add("chmod 660 ${BrowserPaths.q(dstFile)} 2>/dev/null || true")
+        commands.add(
+            "chmod 660 ${BrowserPaths.q(dstFile)} ${BrowserPaths.q(prefsFile)} " +
+                "2>/dev/null || true"
+        )
+        // cp/sed create files as root; restore the SELinux label too, or
+        // Firefox's own process cannot read the transplanted account.
+        commands.add(
+            "command -v restorecon >/dev/null 2>&1 && " +
+                "restorecon -F ${BrowserPaths.q(dstFile)} ${BrowserPaths.q(prefsFile)} " +
+                "2>/dev/null || true"
+        )
         RootHelper.execMultiple(commands)
 
         val after = FirefoxAccountInspector.inspect(dstPkg)

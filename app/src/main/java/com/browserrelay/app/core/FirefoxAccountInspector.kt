@@ -31,8 +31,12 @@ object FirefoxAccountInspector {
         val hasSecure = BrowserPaths.exists(secureA) || BrowserPaths.exists(secureB)
         val secureChannel = isSecureAccountPackage(packageName)
         val plainHasState = hasPlain && try {
+            // Require actual content: an empty <string name="fxaState" /> is
+            // what a Nightly build leaves behind after moving to its secure
+            // store, and copying that would look like a successful transfer.
             RootHelper.exec(
-                "grep -q 'name=\"fxaState\"' ${BrowserPaths.q(plain)} 2>/dev/null && echo YES || echo NO"
+                "grep -q 'name=\"fxaState\"[^>]*>[^<]' ${BrowserPaths.q(plain)} " +
+                    "2>/dev/null && echo YES || echo NO"
             ).stdout.contains("YES")
         } catch (_: Exception) {
             false
