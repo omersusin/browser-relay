@@ -1,12 +1,12 @@
 <resources>
-    <string name="app_name">Browser Relay</string>
-    <string name="app_description">Move browser data with root access.</string>
+    <string name="app_name">Trestle</string>
+    <string name="app_description">Move your browser. Keep your rhythm.</string>
 
     <!-- Home -->
-    <string name="brand">BROWSER MIGRATOR</string>
-    <string name="home_title">Move your browsing life.</string>
-    <string name="home_subtitle">Bookmarks, history, tabs, extensions and your Firefox Account — without cloud sync.</string>
-    <string name="hero_eyebrow">ON-DEVICE · NO CLOUD</string>
+    <string name="brand">TRESTLE</string>
+    <string name="home_title">Move everything.\nKeep the feel.</string>
+    <string name="home_subtitle">Bookmarks, history, open tabs, extensions and site sessions move with you. On this device only.</string>
+    <string name="hero_eyebrow">ON DEVICE · NO CLOUD</string>
     <string name="access_title">Privileged access</string>
     <string name="access_checking">Checking privileged access…</string>
     <string name="access_ready">Root access ready</string>
@@ -148,7 +148,7 @@
     <string name="settings_backups">Backups</string>
     <string name="settings_backups_count">%1$d backup(s) found</string>
     <string name="settings_delete_backups">Delete all backups</string>
-    <string name="settings_delete_backups_desc">This only removes copies made by Browser Relay.</string>
+    <string name="settings_delete_backups_desc">This only removes copies made by Trestle.</string>
     <string name="settings_about">About</string>
     <string name="settings_version">Version %1$s</string>
     <string name="settings_root_ready">Root ready</string>
@@ -169,7 +169,7 @@
     <string name="no_backup">No backup found.</string>
     <string name="deleted_backups">Deleted %1$d backup(s).</string>
     <string name="report_not_found">Report not found.</string>
-    <string name="share_report_subject">Browser Relay extension report</string>
+    <string name="share_report_subject">Trestle extension report</string>
     <string name="share_report_text">Extension migration report</string>
 
     <!-- Errors and status -->
@@ -183,10 +183,55 @@
     <string name="shizuku_not_installed">Shizuku is not installed or not running.</string>
     <string name="shizuku_permission_denied">Shizuku permission was not granted.</string>
     <string name="shizuku_adb_warning">Shizuku is running in ADB mode (UID 2000). It cannot read app-private browser data. Use root or start Shizuku with root.</string>
-    <string name="root_request_hint">Grant root permission to Browser Relay when prompted.</string>
+    <string name="root_request_hint">Grant root permission to Trestle when prompted.</string>
     <string name="access_uid">UID %1$d</string>
     <string name="route_summary">%1$s → %2$s</string>
     <string name="not_available">Not available</string>
     <string name="extension_count">%1$d</string>
     <string name="version_unknown">unknown</string>
+
+    <string name="menu">Menu</string>
+    <string name="source">Source</string>
+    <string name="target">Target</string>
+    <string name="tap_to_choose">Tap to choose</string>
+    <string name="swap">Swap source and target</string>
+    <string name="move_bookmarks_history">Bookmarks &amp; history</string>
+    <string name="move_passwords_sessions">Passwords &amp; site sessions</string>
+    <string name="always">Always</string>
+    <string name="optional">Optional</string>
+    <string name="move_open_tabs">Open tabs</string>
+    <string name="move_extensions">Extensions</string>
+    <string name="change_on_next">You can change what moves on the next screen.</string>
+    <string name="privacy_footer">On this device only. No cloud, no account required.</string>
+    <string name="menu_new_transfer">New transfer</string>
+    <string name="menu_options">Transfer options</string>
+    <string name="menu_history">Recent transfers</string>
+    <string name="menu_settings">Settings</string>
+    <string name="menu_help">Help &amp; account</string>
+    <string name="history_title">Recent transfers</string>
+    <string name="history_empty">No transfers yet. Your last five runs will appear here.</string>
+    <string name="history_item">%1$s → %2$s · %3$s</string>
+    <string name="account_help_open">Open Firefox Beta</string>
+    <string name="account_help_open_app">Open %1$s</string>
+    <string name="account_help_title">Why can’t Trestle copy this account?</string>
+    <string name="account_help_body">Nightly stores the signed-in Firefox Account in Android Keystore, encrypted with a key that belongs to Nightly’s app identity. Android does not let another app read that key, even with root. Sign in once in Firefox Beta. Everything else still moves automatically.</string>
+    <string name="account_help_ok">Got it</string>
+    <string name="help_title">A quiet, local transfer</string>
+    <string name="help_body">Trestle copies browser data directly between installed apps. It never uploads anything. Use the options on the review screen to choose tabs, extensions and account state. If a transfer goes wrong, the target profile backup is kept under Download/BrowserRelay/backups.</string>
+    <string name="about_version">Trestle %1$s</string>
+
+
+    <string name="settings_appearance">Appearance</string>
+    <string name="settings_theme_system">Follow system</string>
+    <string name="settings_theme_light">Light</string>
+    <string name="settings_theme_dark">Dark</string>
+
+
+    <string name="access_checking_desc">One-time setup. Nothing leaves the phone.</string>
+    <string name="access_grant">Grant</string>
+    <string name="review_transfer">Review transfer</string>
+
+    <string name="history_complete">Complete</string>
+    <string name="history_partial">Partial</string>
+    <string name="history_failed">Failed</string>
 </resources>

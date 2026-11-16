@@ -77,7 +77,9 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="20dp"
-            app:cardBackgroundColor="@color/md_primary_container">
+            app:cardBackgroundColor="@color/md_surface_container_low"
+            app:strokeColor="@color/md_outline_variant"
+            app:strokeWidth="1dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -91,8 +93,8 @@
                     android:layout_width="26dp"
                     android:layout_height="26dp"
                     android:contentDescription="@null"
-                    android:src="@drawable/ic_shield"
-                    android:tint="@color/md_on_primary_container" />
+                    android:src="@drawable/ic_migrate_flow"
+                    android:tint="@color/md_primary" />
 
                 <LinearLayout
                     android:layout_width="0dp"
@@ -107,7 +109,7 @@
                         android:layout_height="wrap_content"
                         android:text="@string/route_pick_both"
                         android:textAppearance="@style/TextAppearance.BrowserRelay.Label"
-                        android:textColor="@color/md_on_primary_container"
+                        android:textColor="@color/md_on_surface"
                         android:textSize="15sp" />
 
                     <TextView
@@ -116,7 +118,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="2dp"
                         android:text="@string/review_subtitle"
-                        android:textColor="@color/md_on_primary_container"
+                        android:textColor="@color/md_on_surface_variant"
                         android:textSize="11sp"
                         android:alpha="0.78" />
                 </LinearLayout>
@@ -394,6 +396,15 @@
             android:textSize="11sp"
             android:visibility="gone" />
 
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnAccountHelp"
+            style="@style/Widget.BrowserRelay.Button.Outlined"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_marginTop="8dp"
+            android:text="@string/account_help_open"
+            android:visibility="gone" />
+
         <!-- Backup -->
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
@@ -447,7 +458,7 @@
             android:layout_marginTop="22dp"
             android:text="@string/start_migration"
             android:textSize="16sp"
-            app:icon="@drawable/ic_rocket"
+            app:icon="@drawable/ic_arrow_forward"
             app:iconGravity="textStart" />
 
         <com.google.android.material.button.MaterialButton

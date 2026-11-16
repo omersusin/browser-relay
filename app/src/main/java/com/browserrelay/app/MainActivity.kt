@@ -8,6 +8,7 @@ import android.text.Spannable
 import android.text.SpannableStringBuilder
 import android.text.style.ForegroundColorSpan
 import android.view.View
+import android.widget.PopupMenu
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
@@ -44,6 +45,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.util.Locale
+import java.text.SimpleDateFormat
+import java.util.Date
 
 class MainActivity : AppCompatActivity() {
 
@@ -57,6 +60,8 @@ class MainActivity : AppCompatActivity() {
         const val PREFS = "browser_relay_ui"
         const val KEY_SOURCE = "source_package"
         const val KEY_TARGET = "target_package"
+        const val KEY_HISTORY = "recent_history"
+        const val KEY_THEME = "theme_mode"
     }
 
     private lateinit var b: ActivityMainBinding
@@ -103,6 +108,12 @@ class MainActivity : AppCompatActivity() {
     private val cOnPrimary by lazy { ContextCompat.getColor(this, R.color.md_on_primary) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        AppCompatDelegate.setDefaultNightMode(
+            getSharedPreferences(PREFS, MODE_PRIVATE).getInt(
+                KEY_THEME,
+                AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
+            )
+        )
         super.onCreate(savedInstanceState)
         b = ActivityMainBinding.inflate(layoutInflater)
         setContentView(b.root)
@@ -167,6 +178,114 @@ class MainActivity : AppCompatActivity() {
         refreshAccessState()
     }
 
+    private fun showHomeMenu() {
+        val popup = PopupMenu(this, b.screenHome.btnHomeSettings)
+        popup.menuInflater.inflate(R.menu.menu_home, popup.menu)
+        popup.setOnMenuItemClickListener { item ->
+            when (item.itemId) {
+                R.id.action_new -> {
+                    showHome()
+                    true
+                }
+                R.id.action_options -> {
+                    if (sourceBrowser == null || targetBrowser == null) {
+                        toast(getString(R.string.error_select_both))
+                    } else {
+                        openReview()
+                    }
+                    true
+                }
+                R.id.action_history -> {
+                    showHistory()
+                    true
+                }
+                R.id.action_settings -> {
+                    showSettings()
+                    true
+                }
+                R.id.action_help -> {
+                    showHelp()
+                    true
+                }
+                else -> false
+            }
+        }
+        popup.show()
+    }
+
+    private fun showHistory() {
+        val raw = getSharedPreferences(PREFS, MODE_PRIVATE)
+            .getString(KEY_HISTORY, "").orEmpty().trim()
+        val message = if (raw.isBlank()) {
+            getString(R.string.history_empty)
+        } else {
+            raw.lines().joinToString("\n\n") { line ->
+                val parts = line.split('|')
+                if (parts.size >= 4) {
+                    getString(R.string.history_item, parts[1], parts[2], parts[3]) +
+                        "\n" + parts[0]
+                } else {
+                    line
+                }
+            }
+        }
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.history_title)
+            .setMessage(message)
+            .setPositiveButton(R.string.close, null)
+            .show()
+    }
+
+    private fun saveHistory(result: MigrationResult) {
+        val source = migratedSource ?: return
+        val target = migratedTarget ?: return
+        val status = when (result) {
+            is MigrationResult.Success -> getString(R.string.history_complete)
+            is MigrationResult.Partial -> getString(R.string.history_partial)
+            else -> getString(R.string.history_failed)
+        }
+        val stamp = SimpleDateFormat("d MMM · HH:mm", Locale.getDefault()).format(Date())
+        val entry = "$stamp|${source.label}|${target.label}|$status"
+        val prefs = getSharedPreferences(PREFS, MODE_PRIVATE)
+        val old = prefs.getString(KEY_HISTORY, "").orEmpty().lines()
+            .filter { it.isNotBlank() }
+        val updated = (listOf(entry) + old).take(5).joinToString("\n")
+        prefs.edit().putString(KEY_HISTORY, updated).apply()
+    }
+
+    private fun showHelp() {
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.help_title)
+            .setMessage(getString(R.string.help_body) + "\n\n" + getString(R.string.account_help_body))
+            .setPositiveButton(R.string.account_help_ok, null)
+            .show()
+    }
+
+    private fun showAccountHelp() {
+        val state = sourceAccount
+        val target = targetBrowser
+        if (state?.secureOnly == true) {
+            MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.account_help_title)
+                .setMessage(R.string.account_help_body)
+                .setPositiveButton(getString(R.string.account_help_open_app, target?.label ?: getString(R.string.target))) { _, _ -> openTargetBrowser() }
+                .setNegativeButton(R.string.cancel, null)
+                .show()
+            return
+        }
+        val body = when {
+            state == null -> getString(R.string.account_unknown)
+            state.found && state.email != null -> getString(R.string.account_found, state.email)
+            state.found -> getString(R.string.account_found_no_email)
+            else -> getString(R.string.account_missing)
+        }
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.account_title)
+            .setMessage(body)
+            .setPositiveButton(R.string.close, null)
+            .show()
+    }
+
     private fun showExtensionsBack() {
         showScreen(
             if (extensionsFromResult) SCREEN_RESULT else SCREEN_REVIEW,
@@ -179,7 +298,12 @@ class MainActivity : AppCompatActivity() {
     // ---------------------------------------------------------------------
 
     private fun setupListeners() {
-        b.screenHome.btnHomeSettings.setOnClickListener { showSettings() }
+        b.screenHome.btnHomeSettings.setOnClickListener { showHomeMenu() }
+        b.screenHome.cardAccount.setOnClickListener { showAccountHelp() }
+        b.screenHome.btnReview.setOnLongClickListener {
+            showHistory()
+            true
+        }
         b.screenHome.cardSource.setOnClickListener { showBrowserPicker(isSource = true) }
         b.screenHome.cardTarget.setOnClickListener { showBrowserPicker(isSource = false) }
         b.screenHome.btnSwap.setOnClickListener { swapBrowsers() }
@@ -189,6 +313,7 @@ class MainActivity : AppCompatActivity() {
         b.screenReview.btnReviewBack.setOnClickListener { showScreen(SCREEN_HOME, forward = false) }
         b.screenReview.btnReviewCancel.setOnClickListener { showScreen(SCREEN_HOME, forward = false) }
         b.screenReview.btnStart.setOnClickListener { startMigration() }
+        b.screenReview.btnAccountHelp.setOnClickListener { showAccountHelp() }
 
         b.screenProgress.btnToggleLog.setOnClickListener { toggleLog() }
 
@@ -257,6 +382,7 @@ class MainActivity : AppCompatActivity() {
         b.screenReview.rowReviewAccount.visibility = View.GONE
         b.screenReview.txtReviewAccountNote.visibility = View.GONE
         b.screenReview.txtExtensionsCount.text = getString(R.string.move_extensions_desc)
+        b.screenReview.btnAccountHelp.visibility = View.GONE
     }
 
     private fun updateUi() {
@@ -285,6 +411,7 @@ class MainActivity : AppCompatActivity() {
             b.screenReview.txtReviewAccountDesc.text = getString(R.string.account_not_applicable)
             b.screenReview.switchAccount.isChecked = false
             b.screenReview.switchAccount.isEnabled = false
+            b.screenReview.btnAccountHelp.visibility = View.GONE
         }
         updateExtensionCount()
     }
@@ -721,6 +848,14 @@ class MainActivity : AppCompatActivity() {
                 else -> R.string.account_note_release
             }
         )
+        b.screenReview.btnAccountHelp.visibility =
+            if (secure) View.VISIBLE else View.GONE
+        if (secure) {
+            b.screenReview.btnAccountHelp.text = getString(
+                R.string.account_help_open_app,
+                target.label
+            )
+        }
     }
 
     private fun updateExtensionCount() {
@@ -860,6 +995,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun finishMigration(result: MigrationResult) {
         lastResult = result
+        saveHistory(result)
         val elapsed = System.currentTimeMillis() - migrationStartedAt
         showResult(result, elapsed)
         if (extensionPreview == null) loadExtensionsOnly()
@@ -1165,8 +1301,10 @@ class MainActivity : AppCompatActivity() {
         )
         binding.txtSettingsShizuku.text = accessLabelText
         binding.txtLanguageValue.text = languageLabel()
+        binding.txtAppearanceValue.text = themeLabel()
 
         binding.rowLanguage.setOnClickListener { showLanguageDialog() }
+        binding.rowAppearance.setOnClickListener { showThemeDialog() }
         binding.btnCloseSettings.setOnClickListener { dialog.dismiss() }
         binding.btnSettingsRefresh.setOnClickListener {
             lifecycleScope.launch {
@@ -1194,6 +1332,40 @@ class MainActivity : AppCompatActivity() {
 
         dialog.show()
         dialog.behavior.state = BottomSheetBehavior.STATE_EXPANDED
+    }
+
+    private fun themeLabel(): String = when (
+        AppCompatDelegate.getDefaultNightMode()
+    ) {
+        AppCompatDelegate.MODE_NIGHT_NO -> getString(R.string.settings_theme_light)
+        AppCompatDelegate.MODE_NIGHT_YES -> getString(R.string.settings_theme_dark)
+        else -> getString(R.string.settings_theme_system)
+    }
+
+    private fun showThemeDialog() {
+        val labels = arrayOf(
+            getString(R.string.settings_theme_system),
+            getString(R.string.settings_theme_light),
+            getString(R.string.settings_theme_dark)
+        )
+        val modes = intArrayOf(
+            AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM,
+            AppCompatDelegate.MODE_NIGHT_NO,
+            AppCompatDelegate.MODE_NIGHT_YES
+        )
+        val checked = modes.indexOf(AppCompatDelegate.getDefaultNightMode()).let {
+            if (it < 0) 0 else it
+        }
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.settings_appearance)
+            .setSingleChoiceItems(labels, checked) { dialog, which ->
+                getSharedPreferences(PREFS, MODE_PRIVATE).edit()
+                    .putInt(KEY_THEME, modes[which]).apply()
+                AppCompatDelegate.setDefaultNightMode(modes[which])
+                dialog.dismiss()
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
     }
 
     private fun showLanguageDialog() {

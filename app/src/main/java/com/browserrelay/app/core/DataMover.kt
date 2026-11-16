@@ -94,7 +94,7 @@ class DataMover(private val context: Context) {
 
             if (!RootHelper.checkRoot()) {
                 return@withContext MigrationResult.Failure(
-                    "Root access is required. Grant root permission to Browser Relay, " +
+                    "Root access is required. Grant root permission to Trestle, " +
                         "or use a Shizuku server started with root (Shizuku's ADB/UID 2000 backend " +
                         "cannot read app-private browser data)."
                 )
@@ -293,11 +293,11 @@ class DataMover(private val context: Context) {
         // already contain its own account (or a half-copied file), and leaving
         // it in place would silently keep the wrong account signed in.
 
-        val srcData = BrowserPaths.dataDir(srcPkg) ?: return null
         val dstData = BrowserPaths.dataDir(dstPkg) ?: return null
-        val srcPrefs = "$srcData/shared_prefs"
         val dstPrefs = "$dstData/shared_prefs"
-        val srcFile = "$srcPrefs/fxaAppState.xml"
+        // fxaAppState.xml is the Beta/Release location; Nightly may only have
+        // the same state in fxaStateAC_kp_pre_m.xml. Both use the fxaState key.
+        val srcFile = source.plainFile ?: return null
         if (!BrowserPaths.exists(srcFile)) return null
 
         val dstFile = "$dstPrefs/fxaAppState.xml"
@@ -491,7 +491,7 @@ class DataMover(private val context: Context) {
         val dstAccount = try { FirefoxAccountInspector.inspect(dstPkg) } catch (_: Exception) { null }
 
         val text = buildString {
-            appendLine("=== Browser Relay diagnostics ===")
+            appendLine("=== Trestle diagnostics ===")
             appendLine("time=${System.currentTimeMillis()}")
             appendLine("source=$srcPkg")
             appendLine("target=$dstPkg")

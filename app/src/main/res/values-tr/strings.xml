@@ -1,11 +1,11 @@
 <resources>
-    <string name="app_name">Browser Relay</string>
-    <string name="app_description">Tarayıcı verilerini root erişimiyle taşıyın.</string>
+    <string name="app_name">Trestle</string>
+    <string name="app_description">Tarayıcını taşı, düzenini koru.</string>
 
     <!-- Home -->
-    <string name="brand">TARAYICI TAŞIYICI</string>
-    <string name="home_title">Tarama hayatını taşı.</string>
-    <string name="home_subtitle">Yer imleri, geçmiş, sekmeler, uzantılar ve Firefox Account — bulut eşitlemesi olmadan.</string>
+    <string name="brand">TRESTLE</string>
+    <string name="home_title">Her şeyi taşı.\nDüzenin kalsın.</string>
+    <string name="home_subtitle">Yer imleri, geçmiş, açık sekmeler, uzantılar ve site oturumları seninle gelir. Yalnızca bu cihazda.</string>
     <string name="hero_eyebrow">CİHAZDA · BULUTSUZ</string>
     <string name="access_title">Ayrıcalıklı erişim</string>
     <string name="access_checking">Ayrıcalıklı erişim denetleniyor…</string>
@@ -148,7 +148,7 @@
     <string name="settings_backups">Yedekler</string>
     <string name="settings_backups_count">%1$d yedek bulundu</string>
     <string name="settings_delete_backups">Tüm yedekleri sil</string>
-    <string name="settings_delete_backups_desc">Yalnızca Browser Relay tarafından oluşturulan kopyaları siler.</string>
+    <string name="settings_delete_backups_desc">Yalnızca Trestle tarafından oluşturulan kopyaları siler.</string>
     <string name="settings_about">Hakkında</string>
     <string name="settings_version">Sürüm %1$s</string>
     <string name="settings_root_ready">Root hazır</string>
@@ -169,7 +169,7 @@
     <string name="no_backup">Yedek bulunamadı.</string>
     <string name="deleted_backups">%1$d yedek silindi.</string>
     <string name="report_not_found">Rapor bulunamadı.</string>
-    <string name="share_report_subject">Browser Relay uzantı raporu</string>
+    <string name="share_report_subject">Trestle uzantı raporu</string>
     <string name="share_report_text">Uzantı taşıma raporu</string>
 
     <!-- Errors and status -->
@@ -183,10 +183,55 @@
     <string name="shizuku_not_installed">Shizuku yüklü değil veya çalışmıyor.</string>
     <string name="shizuku_permission_denied">Shizuku izni verilmedi.</string>
     <string name="shizuku_adb_warning">Shizuku ADB modunda (UID 2000) çalışıyor. Uygulamaya özel tarayıcı verilerini okuyamaz. Root kullanın veya Shizuku\'yu root ile başlatın.</string>
-    <string name="root_request_hint">İstendiğinde Browser Relay uygulamasına root izni verin.</string>
+    <string name="root_request_hint">İstendiğinde Trestle uygulamasına root izni verin.</string>
     <string name="access_uid">UID %1$d</string>
     <string name="route_summary">%1$s → %2$s</string>
     <string name="not_available">Kullanılamıyor</string>
     <string name="extension_count">%1$d</string>
     <string name="version_unknown">bilinmiyor</string>
+
+    <string name="menu">Menü</string>
+    <string name="source">Kaynak</string>
+    <string name="target">Hedef</string>
+    <string name="tap_to_choose">Seçmek için dokun</string>
+    <string name="swap">Kaynak ve hedefi değiştir</string>
+    <string name="move_bookmarks_history">Yer imleri ve geçmiş</string>
+    <string name="move_passwords_sessions">Parolalar ve site oturumları</string>
+    <string name="always">Her zaman</string>
+    <string name="optional">İsteğe bağlı</string>
+    <string name="move_open_tabs">Açık sekmeler</string>
+    <string name="move_extensions">Uzantılar</string>
+    <string name="change_on_next">Nelerin taşınacağını bir sonraki ekranda değiştirebilirsin.</string>
+    <string name="privacy_footer">Yalnızca bu cihazda. Bulut yok, hesap gerekmez.</string>
+    <string name="menu_new_transfer">Yeni aktarım</string>
+    <string name="menu_options">Aktarım seçenekleri</string>
+    <string name="menu_history">Son aktarımlar</string>
+    <string name="menu_settings">Ayarlar</string>
+    <string name="menu_help">Yardım ve hesap</string>
+    <string name="history_title">Son aktarımlar</string>
+    <string name="history_empty">Henüz aktarım yok. Son beş aktarım burada görünür.</string>
+    <string name="history_item">%1$s → %2$s · %3$s</string>
+    <string name="account_help_open">Firefox Beta’yı aç</string>
+    <string name="account_help_open_app">%1$s uygulamasını aç</string>
+    <string name="account_help_title">Trestle bu hesabı neden kopyalayamıyor?</string>
+    <string name="account_help_body">Nightly, oturum açılmış Firefox Account’u Android Keystore’da saklar. Anahtar Nightly’nin uygulama kimliğine bağlıdır; Android, root olsa bile başka bir uygulamanın bu anahtarı okumasına izin vermez. Firefox Beta’da bir kez giriş yap. Diğer her şey otomatik taşınır.</string>
+    <string name="account_help_ok">Anladım</string>
+    <string name="help_title">Sessiz, yerel bir aktarım</string>
+    <string name="help_body">Trestle, tarayıcı verilerini doğrudan yüklü uygulamalar arasında kopyalar. Hiçbir şeyi yüklemez. Sekmeleri, uzantıları ve hesap durumunu inceleme ekranındaki seçeneklerle yönetebilirsin. Bir aktarım ters giderse hedef profil yedeği Download/BrowserRelay/backups altında saklanır.</string>
+    <string name="about_version">Trestle %1$s</string>
+
+
+    <string name="settings_appearance">Görünüm</string>
+    <string name="settings_theme_system">Sistemi izle</string>
+    <string name="settings_theme_light">Açık</string>
+    <string name="settings_theme_dark">Koyu</string>
+
+
+    <string name="access_checking_desc">Tek seferlik kurulum. Hiçbir şey cihazdan çıkmaz.</string>
+    <string name="access_grant">İzin ver</string>
+    <string name="review_transfer">Aktarımı gözden geçir</string>
+
+    <string name="history_complete">Tamamlandı</string>
+    <string name="history_partial">Kısmi</string>
+    <string name="history_failed">Başarısız</string>
 </resources>

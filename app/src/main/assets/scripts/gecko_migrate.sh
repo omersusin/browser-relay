@@ -651,19 +651,26 @@ main() {
         done
     fi
     local account_transferable=0
+    local src_plain=""
     if [ "$MIGRATE_ACCOUNT" = "1" ]; then
         # The first release copied the plain-text fxaAppState.xml even from
         # Nightly. Nightly usually keeps that file as a fallback next to its
         # Keystore store, and it is the only account state the target can read.
-        # The package name must not block it: only a profile without a real
-        # fxaState value is untransferable.
-        if [ -f "$src_sp/fxaAppState.xml" ] && \
-           grep -q 'name="fxaState"[^>]*>[^<]' "$src_sp/fxaAppState.xml" 2>/dev/null; then
+        # Older SecureAbove22 builds also left the same fxaState key in
+        # fxaStateAC_kp_pre_m.xml; accept that as a second plain-text source.
+        for f in "$src_sp/fxaAppState.xml" "$src_sp/fxaStateAC_kp_pre_m.xml"; do
+            [ -f "$f" ] || continue
+            if grep -q 'name="fxaState"[^>]*>[^<]' "$f" 2>/dev/null; then
+                src_plain="$f"
+                break
+            fi
+        done
+        if [ -n "$src_plain" ]; then
             account_transferable=1
             if [ -f "$src_sp/fxaStatePrefAC.xml" ] || \
                [ -f "$src_sp/fxaStateAC_kp_post_m.xml" ] || \
                [ -f "$src_sp/fxaStateAC_kp_pre_m.xml" ]; then
-                log_info "Nightly secure account store detected; copying its plain-text fxaAppState.xml fallback"
+                log_info "Nightly secure account store detected; copying its plain-text fallback ($(basename "$src_plain"))"
             fi
         fi
     fi
@@ -721,7 +728,11 @@ main() {
         rm -f "${dst_sp}/fxaStateAC.xml" "${dst_sp}/fxaStatePrefAC.xml" \
               "${dst_sp}/fxaStateAC_kp_post_m.xml" "${dst_sp}/fxaStateAC_kp_pre_m.xml" \
               "${dst_sp}/fxaAppState.xml.bak" "${dst_sp}/fenix_preferences.xml.bak" 2>/dev/null
-        safe_cp "$src_sp/fxaAppState.xml" "$dst_sp/fxaAppState.xml" "Firefox Account state (plain-text fallback)"
+        if [ -n "$src_plain" ]; then
+            safe_cp "$src_plain" "$dst_sp/fxaAppState.xml" "Firefox Account state (plain-text fallback)"
+        else
+            log_warn "No plain-text Firefox Account state found; sign in once in the target"
+        fi
         for n in FxaDeviceSettingsCache.xml SyncAuthInfoCache.xml syncPrefs.xml syncEngines.xml sync.logins.prefs.xml mozac_feature_accounts_push.xml; do
             [ -f "$src_sp/$n" ] && safe_cp "$src_sp/$n" "$dst_sp/$n" "sync pref: $n"
         done

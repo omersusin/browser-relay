@@ -20,7 +20,9 @@ data class FirefoxAccountState(
     val found: Boolean = false,
     val email: String? = null,
     val secureOnly: Boolean = false,
-    val secureFallback: Boolean = false
+    val secureFallback: Boolean = false,
+    /** Plain-text shared_prefs XML the target can read, when one exists. */
+    val plainFile: String? = null
 ) {
     val canTransfer: Boolean get() = found && !secureOnly
 }
@@ -30,49 +32,59 @@ object FirefoxAccountInspector {
     suspend fun inspect(packageName: String): FirefoxAccountState {
         val dataDir = findDataDir(packageName) ?: return FirefoxAccountState()
         val prefs = "$dataDir/shared_prefs"
-        val plain = "$prefs/fxaAppState.xml"
         val secureA = "$prefs/fxaStateAC.xml"
-        val secureB = "$prefs/fxaStatePrefAC.xml"
         val securePost = "$prefs/fxaStateAC_kp_post_m.xml"
-        val securePre = "$prefs/fxaStateAC_kp_pre_m.xml"
 
-        val hasPlain = BrowserPaths.exists(plain)
-        val hasSecure = BrowserPaths.exists(secureA) || BrowserPaths.exists(secureB) ||
-            BrowserPaths.exists(securePost) || BrowserPaths.exists(securePre)
+        // fxaStatePrefAC only records that the channel uses a secure store;
+        // it does not prove an account exists. The encrypted post-M file (or
+        // the legacy secure store) is the actual evidence.
+        val hasSecure = BrowserPaths.exists(secureA) || BrowserPaths.exists(securePost)
         val secureChannel = isSecureAccountPackage(packageName)
-        val plainHasState = hasPlain && try {
-            // Require actual content: an empty <string name="fxaState" /> is
-            // what a Nightly build leaves behind after moving to its secure
-            // store, and copying that would look like a successful transfer.
-            RootHelper.exec(
-                "grep -q 'name=\"fxaState\"[^>]*>[^<]' ${BrowserPaths.q(plain)} " +
-                    "2>/dev/null && echo YES || echo NO"
-            ).stdout.contains("YES")
-        } catch (_: Exception) {
-            false
+
+        // Firefox Beta/Release read `fxaAppState.xml`. Nightly normally writes
+        // the secure store, but it can leave an older plaintext copy in either
+        // fxaAppState.xml or fxaStateAC_kp_pre_m.xml. Both have the same
+        // `fxaState` key, so the pre-M file is a usable account source too.
+        val candidates = listOf(
+            "$prefs/fxaAppState.xml",
+            "$prefs/fxaStateAC_kp_pre_m.xml"
+        )
+        var plainFile: String? = null
+        var raw = ""
+        for (candidate in candidates) {
+            if (!BrowserPaths.exists(candidate)) continue
+            val content = try {
+                RootHelper.exec("cat ${BrowserPaths.q(candidate)}").stdout
+            } catch (_: Exception) {
+                ""
+            }
+            // Require real content: an empty <string name="fxaState" /> is
+            // what a Nightly build leaves behind after moving to Keystore.
+            val hasState = content.contains("name=\"fxaState\"") &&
+                Regex("""name="fxaState"[^>]*>[^<]+""").containsMatchIn(content)
+            if (hasState) {
+                plainFile = candidate
+                raw = content
+                break
+            }
         }
 
-        // Only a profile without a usable plain-text state is untransferable.
-        // Nightly keeps its secure store in `fxaStatePrefAC.xml` and
-        // `fxaStateAC_kp_*`, but a stale plain-text fxaState is still the
-        // account the target can actually read. This is what v1 copied.
-        if (hasSecure && !plainHasState) {
-            return FirefoxAccountState(found = true, secureOnly = true)
-        }
-        if (!plainHasState) {
-            return FirefoxAccountState()
+        if (plainFile == null) {
+            // Only a profile without any usable plaintext state is
+            // untransferable. The Keystore key is tied to the source UID.
+            return if (hasSecure) {
+                FirefoxAccountState(found = true, secureOnly = true)
+            } else {
+                FirefoxAccountState()
+            }
         }
 
-        val raw = try {
-            RootHelper.exec("cat ${BrowserPaths.q(plain)}").stdout
-        } catch (_: Exception) {
-            ""
-        }
         return FirefoxAccountState(
             found = true,
             email = extractEmail(raw),
             secureOnly = false,
-            secureFallback = hasSecure || secureChannel
+            secureFallback = hasSecure || secureChannel,
+            plainFile = plainFile
         )
     }
 
