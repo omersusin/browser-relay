@@ -108,7 +108,7 @@ public final class FxaKeystoreBridge {
                 fail("the source has no non-empty fxaState value", 4);
             }
 
-            byte[] encrypted;
+            byte[] encrypted = null;
             try {
                 encrypted = Base64.decode(
                         encryptedValue,
