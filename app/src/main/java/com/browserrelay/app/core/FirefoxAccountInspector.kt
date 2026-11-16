@@ -110,7 +110,7 @@ object FirefoxAccountInspector {
         return result.outputLines.firstOrNull { it.startsWith("/") }
     }
 
-    private fun readFile(path: String): String = try {
+    private suspend fun readFile(path: String): String = try {
         RootHelper.exec("cat ${BrowserPaths.q(path)}").stdout
     } catch (_: Exception) {
         ""
