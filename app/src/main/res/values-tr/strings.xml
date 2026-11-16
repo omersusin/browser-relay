@@ -191,16 +191,12 @@
     <string name="version_unknown">bilinmiyor</string>
 
     <string name="menu">Menü</string>
-    <string name="source">Kaynak</string>
-    <string name="target">Hedef</string>
     <string name="tap_to_choose">Seçmek için dokun</string>
-    <string name="swap">Kaynak ve hedefi değiştir</string>
     <string name="move_bookmarks_history">Yer imleri ve geçmiş</string>
     <string name="move_passwords_sessions">Parolalar ve site oturumları</string>
     <string name="always">Her zaman</string>
     <string name="optional">İsteğe bağlı</string>
     <string name="move_open_tabs">Açık sekmeler</string>
-    <string name="move_extensions">Uzantılar</string>
     <string name="change_on_next">Nelerin taşınacağını bir sonraki ekranda değiştirebilirsin.</string>
     <string name="privacy_footer">Yalnızca bu cihazda. Bulut yok, hesap gerekmez.</string>
     <string name="menu_new_transfer">Yeni aktarım</string>

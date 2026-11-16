@@ -191,16 +191,12 @@
     <string name="version_unknown">unknown</string>
 
     <string name="menu">Menu</string>
-    <string name="source">Source</string>
-    <string name="target">Target</string>
     <string name="tap_to_choose">Tap to choose</string>
-    <string name="swap">Swap source and target</string>
     <string name="move_bookmarks_history">Bookmarks &amp; history</string>
     <string name="move_passwords_sessions">Passwords &amp; site sessions</string>
     <string name="always">Always</string>
     <string name="optional">Optional</string>
     <string name="move_open_tabs">Open tabs</string>
-    <string name="move_extensions">Extensions</string>
     <string name="change_on_next">You can change what moves on the next screen.</string>
     <string name="privacy_footer">On this device only. No cloud, no account required.</string>
     <string name="menu_new_transfer">New transfer</string>
