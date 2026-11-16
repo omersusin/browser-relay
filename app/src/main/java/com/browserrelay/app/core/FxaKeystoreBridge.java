@@ -1,5 +1,6 @@
 package com.browserrelay.app.core;
 
+import android.annotation.SuppressLint;
 import android.system.Os;
 import android.util.Base64;
 
@@ -168,6 +169,10 @@ public final class FxaKeystoreBridge {
         }
     }
 
+    // The helper runs from app_process, outside the app sandbox. The
+    // AndroidKeyStore JCA provider is a hidden framework API, so lint's
+    // app-facing private API check does not apply here.
+    @SuppressLint("BlockedPrivateApi")
     private static void installAndroidKeyStoreProvider() {
         try {
             Class<?> provider = Class.forName(
