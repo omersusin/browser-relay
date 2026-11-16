@@ -124,9 +124,14 @@ shelling out to `sqlite3`, which is missing on many Android systems.
 - Firefox Account/Sync state: Release and Beta store the account in plaintext
   `shared_prefs/fxaAppState.xml`, which is copied to the target together with
   the `pref_key_fxa_signed_in` flag. Nightly (`org.mozilla.fenix`) and debug
-  builds use Keystore-bound secure storage, which cannot be transplanted
-  between package UIDs; the app detects that before starting and keeps the
-  account toggle off.
+  builds keep the live state in Keystore-bound secure storage. Trestle detects
+  that state and unlocks it in place: a small helper runs from Trestle's APK
+  under root, temporarily switches to Nightly's Linux UID, decrypts
+  `fxaState` with Nightly's own AndroidKeyStore key, and writes only the
+  resulting plaintext account XML to the target. The key itself is never
+  exported or moved, and tokens are not written to logs. If a device blocks
+  the helper, the app reports the bridge reason and keeps the target account
+  untouched.
 - Same-engine open tabs are restored from the engine session files. Fenix open
   tabs use `mozilla_components_session_storage_gecko.json` (with an AtomicFile
   `.bak` fallback); `tabs.sqlite` alone is not the live session. Cross-engine
@@ -179,7 +184,9 @@ shelling out to `sqlite3`, which is missing on many Android systems.
   name-based; most Android Chromium browsers do not support arbitrary
   extensions, and Bare Browser is the recommended target.
 - **Firefox Account:** Release/Beta account state is copied. Nightly/debug
-  secure state is UID-bound and requires one sign-in in the target.
+  secure state is UID-bound; Trestle decrypts it under Nightly's UID so it can
+  normally be moved without another sign-in. Some hardened root/SELinux setups
+  may block the helper, in which case one sign-in is still required.
 
 ---
 
