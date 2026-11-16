@@ -402,7 +402,7 @@
             android:layout_width="match_parent"
             android:layout_height="48dp"
             android:layout_marginTop="8dp"
-            android:text="@string/account_help_open"
+            android:text="@string/account_help_learn"
             android:visibility="gone" />
 
         <!-- Backup -->

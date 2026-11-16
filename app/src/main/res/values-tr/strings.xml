@@ -54,11 +54,11 @@
     <string name="account_found_no_email">Firefox Account bulundu</string>
     <string name="account_missing">Kaynakta hesap bulunamadı</string>
     <string name="account_target_missing">Hedef oturum açmamış; kaynak hesap kullanılacak</string>
-    <string name="account_secure">Nightly/debug hesabı Keystore ile korunuyor ve kopyalanamaz</string>
+    <string name="account_secure">Firefox Account bulundu · Keystore korumalı, taşıma sırasında açılacak</string>
     <string name="account_disabled">Hedefin oturumunu açık tutmak için açın</string>
     <string name="account_note_release">Release ve Beta hesabı düz metin tercihinde saklar, bu yüzden taşınabilir.</string>
-    <string name="account_note_fallback">Nightly düz metin bir hesap yedeği tutar. Bu yedek kopyalanacak; hedef yine oturum açmanı isterse bir kez giriş yap.</string>
-    <string name="account_note_secure">Hedefte bir kez oturum açın. Nightly/debug belirteçleri kaynak uygulamaya bağlıdır.</string>
+    <string name="account_note_fallback">Nightly düz metin bir hesap yedeği tutar. Trestle canlı Keystore hesabını tercih eder; yalnızca açma başarısız olursa bu kopyaya döner.</string>
+    <string name="account_note_secure">Trestle taşıma sırasında bu hesabı Nightly’nin uygulama kimliğiyle okur. Cihazı kilitlemeyin; anahtar veya belirteç cihazdan çıkmaz.</string>
     <string name="account_toggle">Hesap durumunu kopyala</string>
     <string name="account_not_applicable">Hesap aktarımı yalnızca Firefox motorlu tarayıcılar arasında çalışır.</string>
     <string name="review">Taşımayı gözden geçir</string>
@@ -209,8 +209,9 @@
     <string name="history_item">%1$s → %2$s · %3$s</string>
     <string name="account_help_open">Firefox Beta’yı aç</string>
     <string name="account_help_open_app">%1$s uygulamasını aç</string>
-    <string name="account_help_title">Trestle bu hesabı neden kopyalayamıyor?</string>
-    <string name="account_help_body">Nightly, oturum açılmış Firefox Account’u Android Keystore’da saklar. Anahtar Nightly’nin uygulama kimliğine bağlıdır; Android, root olsa bile başka bir uygulamanın bu anahtarı okumasına izin vermez. Firefox Beta’da bir kez giriş yap. Diğer her şey otomatik taşınır.</string>
+    <string name="account_help_learn">Nasıl çalışır?</string>
+    <string name="account_help_title">Trestle korumalı hesabı nasıl taşır?</string>
+    <string name="account_help_body">Nightly, oturum açılmış Firefox Account’u Android Keystore’da, Nightly’nin uygulama kimliğine bağlı bir anahtarla şifreli saklar. Trestle taşıma sırasında kısa süreliğine bu kimlikle küçük bir okuyucu çalıştırır, hesabın şifresini yerinde çözer ve hedef tarayıcıya yazar. Anahtar cihazdan çıkmaz ve hesap belirteci günlüğe yazılmaz.</string>
     <string name="account_help_ok">Anladım</string>
     <string name="help_title">Sessiz, yerel bir aktarım</string>
     <string name="help_body">Trestle, tarayıcı verilerini doğrudan yüklü uygulamalar arasında kopyalar. Hiçbir şeyi yüklemez. Sekmeleri, uzantıları ve hesap durumunu inceleme ekranındaki seçeneklerle yönetebilirsin. Bir aktarım ters giderse hedef profil yedeği Download/BrowserRelay/backups altında saklanır.</string>

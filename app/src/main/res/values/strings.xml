@@ -54,11 +54,11 @@
     <string name="account_found_no_email">Firefox Account found</string>
     <string name="account_missing">No account found in the source</string>
     <string name="account_target_missing">Target is signed out; the source account will be used</string>
-    <string name="account_secure">Nightly/debug account is Keystore-protected and cannot be copied</string>
+    <string name="account_secure">Firefox Account found · Keystore-protected, will be unlocked during migration</string>
     <string name="account_disabled">Turn on to keep the target signed in</string>
     <string name="account_note_release">Release and Beta store the account in a plain-text preference, so it can be moved.</string>
-    <string name="account_note_fallback">Nightly keeps a plain-text account backup. It will be copied; if the target still asks you to sign in, sign in once.</string>
-    <string name="account_note_secure">Sign in once in the target. Nightly/debug tokens are bound to the source app.</string>
+    <string name="account_note_fallback">Nightly keeps a plain-text account backup. Trestle prefers the live Keystore account and falls back to this copy only if unlocking fails.</string>
+    <string name="account_note_secure">Trestle reads this account under Nightly’s app identity during migration. Keep the device unlocked; no key or token leaves the device.</string>
     <string name="account_toggle">Copy account state</string>
     <string name="account_not_applicable">Account transfer only works between Firefox-engine browsers.</string>
     <string name="review">Review migration</string>
@@ -209,8 +209,9 @@
     <string name="history_item">%1$s → %2$s · %3$s</string>
     <string name="account_help_open">Open Firefox Beta</string>
     <string name="account_help_open_app">Open %1$s</string>
-    <string name="account_help_title">Why can’t Trestle copy this account?</string>
-    <string name="account_help_body">Nightly stores the signed-in Firefox Account in Android Keystore, encrypted with a key that belongs to Nightly’s app identity. Android does not let another app read that key, even with root. Sign in once in Firefox Beta. Everything else still moves automatically.</string>
+    <string name="account_help_learn">How this works</string>
+    <string name="account_help_title">How Trestle moves a protected account</string>
+    <string name="account_help_body">Nightly stores the signed-in Firefox Account in Android Keystore, encrypted with a key bound to Nightly’s app identity. During migration Trestle briefly runs a small reader under that identity, decrypts the account in place, and writes it to the target browser. The key never leaves the device, and Trestle never writes the account token to its log.</string>
     <string name="account_help_ok">Got it</string>
     <string name="help_title">A quiet, local transfer</string>
     <string name="help_body">Trestle copies browser data directly between installed apps. It never uploads anything. Use the options on the review screen to choose tabs, extensions and account state. If a transfer goes wrong, the target profile backup is kept under Download/BrowserRelay/backups.</string>

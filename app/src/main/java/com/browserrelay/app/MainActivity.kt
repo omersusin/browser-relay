@@ -264,26 +264,27 @@ class MainActivity : AppCompatActivity() {
     private fun showAccountHelp() {
         val state = sourceAccount
         val target = targetBrowser
-        if (state?.secureOnly == true) {
-            MaterialAlertDialogBuilder(this)
-                .setTitle(R.string.account_help_title)
-                .setMessage(R.string.account_help_body)
-                .setPositiveButton(getString(R.string.account_help_open_app, target?.label ?: getString(R.string.target))) { _, _ -> openTargetBrowser() }
-                .setNegativeButton(R.string.cancel, null)
-                .show()
-            return
-        }
+        val protected = state?.secureOnly == true || state?.secureFallback == true
         val body = when {
             state == null -> getString(R.string.account_unknown)
+            state.secureOnly ->
+                getString(R.string.account_secure) + "\n\n" + getString(R.string.account_help_body)
+            state.secureFallback ->
+                getString(R.string.account_note_fallback) + "\n\n" + getString(R.string.account_help_body)
             state.found && state.email != null -> getString(R.string.account_found, state.email)
             state.found -> getString(R.string.account_found_no_email)
             else -> getString(R.string.account_missing)
         }
-        MaterialAlertDialogBuilder(this)
-            .setTitle(R.string.account_title)
+        val dialog = MaterialAlertDialogBuilder(this)
+            .setTitle(if (protected) R.string.account_help_title else R.string.account_title)
             .setMessage(body)
             .setPositiveButton(R.string.close, null)
-            .show()
+        if (state?.found == true && target != null) {
+            dialog.setNeutralButton(
+                getString(R.string.account_help_open_app, target.label)
+            ) { _, _ -> openTargetBrowser() }
+        }
+        dialog.show()
     }
 
     private fun showExtensionsBack() {
@@ -833,7 +834,7 @@ class MainActivity : AppCompatActivity() {
             }
         )
         b.screenHome.imgHomeAccountState.imageTintList = ColorStateList.valueOf(
-            if (secure) cWarning else if (found) cSuccess else cOnSurfaceVariant
+            if (found) cSuccess else cOnSurfaceVariant
         )
 
         b.screenReview.rowReviewAccount.visibility = View.VISIBLE
@@ -849,13 +850,8 @@ class MainActivity : AppCompatActivity() {
             }
         )
         b.screenReview.btnAccountHelp.visibility =
-            if (secure) View.VISIBLE else View.GONE
-        if (secure) {
-            b.screenReview.btnAccountHelp.text = getString(
-                R.string.account_help_open_app,
-                target.label
-            )
-        }
+            if (secure || state?.secureFallback == true) View.VISIBLE else View.GONE
+        b.screenReview.btnAccountHelp.text = getString(R.string.account_help_learn)
     }
 
     private fun updateExtensionCount() {

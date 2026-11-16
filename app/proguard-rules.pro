@@ -15,6 +15,10 @@
 # ViewBinding
 -keep class com.browserrelay.app.databinding.** { *; }
 
+# The Firefox Account bridge is launched by name with app_process. R8 must keep
+# its class name and static main() even though no Java code calls it directly.
+-keep class com.browserrelay.app.core.FxaKeystoreBridge { *; }
+
 # Shizuku UserService classes are loaded by name from a different process.
 -keep class com.browserrelay.app.root.ShellUserService { *; }
 -keep class com.browserrelay.app.IShellService { *; }

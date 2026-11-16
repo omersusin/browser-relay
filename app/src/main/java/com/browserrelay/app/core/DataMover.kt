@@ -153,7 +153,9 @@ class DataMover(private val context: Context) {
                     targetPkg,
                     if (options.copyFirefoxAccount) "1" else "0",
                     if (options.includeExtensions) "1" else "0",
-                    if (options.includeOpenTabs) "1" else "0"
+                    if (options.includeOpenTabs) "1" else "0",
+                    context.packageName,
+                    context.applicationInfo.sourceDir
                 )
             ) { line ->
                 logLines.add(line)
@@ -288,7 +290,10 @@ class DataMover(private val context: Context) {
      */
     private suspend fun repairFirefoxAccount(srcPkg: String, dstPkg: String): String? {
         val source = FirefoxAccountInspector.inspect(srcPkg)
-        if (!source.found || source.secureOnly) return null
+        // Nightly's live state is handled by the migration script's Keystore
+        // bridge. Do not overwrite that result with an older plaintext
+        // fallback in the post-migration repair pass.
+        if (!source.found || source.secureOnly || source.secureFallback) return null
         // Always rewrite the plaintext state from the source. The target may
         // already contain its own account (or a half-copied file), and leaving
         // it in place would silently keep the wrong account signed in.
@@ -352,12 +357,15 @@ class DataMover(private val context: Context) {
     private suspend fun verifyFirefoxAccount(srcPkg: String, dstPkg: String): String? {
         val target = FirefoxAccountInspector.inspect(dstPkg)
         val source = FirefoxAccountInspector.inspect(srcPkg)
-        if (!source.found || source.secureOnly) return null
+        if (!source.found) return null
         return when {
             target.found && !target.secureOnly -> null
             target.secureOnly ->
                 "Firefox Account: the target still has a secure-store file. " +
                     "Open Firefox, sign out/in once if the account screen is blank."
+            source.secureOnly ->
+                "Firefox Account: Nightly's Keystore state could not be written to the target. " +
+                    "The migration log contains the bridge error; the rest of the data is intact."
             else ->
                 "Firefox Account: the copied state is missing in the target. " +
                     "Open Firefox once; if it shows signed out, sign in (the rest of the data is intact)."

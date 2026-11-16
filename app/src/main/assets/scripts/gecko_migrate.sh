@@ -12,12 +12,17 @@ fi
 SRC="$1"
 DST="$2"
 # Optional feature flags supplied by the app:
-#   $3 = copy Firefox Account state (Gecko release/beta plaintext store)
+#   $3 = copy Firefox Account state (plaintext or Nightly Keystore)
 #   $4 = migrate extensions
 #   $5 = migrate open tabs
+#   $6 = Trestle package name (for the Keystore bridge class path)
+#   $7 = Trestle base.apk path
 MIGRATE_ACCOUNT="${3:-1}"
 MIGRATE_EXTENSIONS="${4:-1}"
 MIGRATE_TABS="${5:-1}"
+MIGRATOR_PKG="${6:-com.browserrelay.app}"
+MIGRATOR_APK="${7:-}"
+BRIDGE_CLASS="com.browserrelay.app.core.FxaKeystoreBridge"
 
 G_PROFILE=""
 G_DATA_DIR=""
@@ -90,6 +95,161 @@ gecko_pref_has_true() {
     local file="$1" key="$2"
     [ -f "$file" ] || return 1
     grep -Eq "<boolean name=\"${key}\" value=\"true\" ?/>" "$file" 2>/dev/null
+}
+
+cleanup_fxa_temp() {
+    rm -f "${WORK_DIR}/.fxa_plain_"* "${WORK_DIR}/.fxa_bridge_"* 2>/dev/null || true
+}
+
+gecko_bridge_output_ok() {
+    [ -s "$1" ] && grep -q 'name="fxaState">[^<]' "$1" 2>/dev/null
+}
+
+# Resolve Trestle's installed base APK. The app passes this explicitly; pm is
+# only a fallback for a manually-run script or a stale invocation.
+gecko_bridge_apk() {
+    local apk="$MIGRATOR_APK"
+    if [ -n "$apk" ] && [ -f "$apk" ]; then
+        echo "$apk"
+        return 0
+    fi
+
+    apk=$(pm path "$MIGRATOR_PKG" 2>/dev/null | sed -n 's/^package://p' | head -n 1 | tr -d '\r')
+    if [ -n "$apk" ] && [ -f "$apk" ]; then
+        echo "$apk"
+        return 0
+    fi
+
+    apk=$(cmd package path "$MIGRATOR_PKG" 2>/dev/null | sed -n 's/^package://p' | head -n 1 | tr -d '\r')
+    if [ -n "$apk" ] && [ -f "$apk" ]; then
+        echo "$apk"
+        return 0
+    fi
+
+    apk=$(find /data/app -name base.apk -path "*${MIGRATOR_PKG}*" 2>/dev/null | head -n 1)
+    if [ -n "$apk" ] && [ -f "$apk" ]; then
+        echo "$apk"
+        return 0
+    fi
+
+    return 1
+}
+
+# Decrypt Nightly's Keystore-backed fxaState through Trestle's helper. The
+# helper runs as root inside app_process, reads the encrypted XML from stdin,
+# drops to the source browser's UID, and writes the target fxaAppState.xml to a
+# root-only temporary file. It never prints the account token or the key.
+#
+# Prints the plaintext XML path on success. All human-readable output goes to
+# the log (stderr), so command substitution only captures the path.
+gecko_decrypt_firefox_account() {
+    local encrypted="$1"
+    local source_uid="$2"
+    local alias="$3"
+
+    [ -f "$encrypted" ] || return 1
+    [ -n "$source_uid" ] || return 1
+
+    local apk
+    apk=$(gecko_bridge_apk)
+    if [ -z "$apk" ]; then
+        log_warn "Keystore bridge: Trestle APK path not found"
+        return 1
+    fi
+
+    local app_process=""
+    for p in /system/bin/app_process /system/bin/app_process64 /system/bin/app_process32; do
+        if [ -x "$p" ]; then
+            app_process="$p"
+            break
+        fi
+    done
+    if [ -z "$app_process" ]; then
+        log_warn "Keystore bridge: app_process is not available"
+        return 1
+    fi
+
+    local out="${WORK_DIR}/.fxa_plain_$$.xml"
+    local err="${WORK_DIR}/.fxa_bridge_$$.err"
+    rm -f "$out" "$err" 2>/dev/null
+    local old_umask
+    old_umask=$(umask)
+    umask 077
+    : > "$out"
+    chmod 600 "$out" 2>/dev/null
+
+    log_info "Keystore bridge: decrypting under source UID ${source_uid}"
+    local rc=1
+    local strategy="root app_process"
+    local su_bin=""
+    su_bin=$(command -v su 2>/dev/null)
+
+    # Primary path: app_process is already root. The helper reads stdin and
+    # then drops to the source UID itself, so the account file never has to be
+    # readable by the dropped process.
+    : > "$out"
+    CLASSPATH="$apk" ANDROID_DATA=/data ANDROID_ROOT=/system \
+        "$app_process" /system/bin "$BRIDGE_CLASS" \
+        --uid "$source_uid" --alias "$alias" --out "$out" \
+        < "$encrypted" 2>"$err"
+    rc=$?
+
+    # Fallback 1: some root profiles deny setuid() but allow `su <uid>`.
+    # app_process runs already switched; the helper skips its own setuid.
+    if ! gecko_bridge_output_ok "$out" && [ -n "$su_bin" ]; then
+        strategy="su ${source_uid}"
+        : > "$out"
+        chown "${source_uid}:${source_uid}" "$out" 2>/dev/null || true
+        chmod 600 "$out" 2>/dev/null || true
+        printf '\n--- bridge fallback: su %s ---\n' "$source_uid" >> "$err"
+        "$su_bin" "$source_uid" -c \
+            "CLASSPATH='$apk' ANDROID_DATA=/data ANDROID_ROOT=/system $app_process /system/bin $BRIDGE_CLASS --uid $source_uid --no-drop --alias $alias --out $out" \
+            < "$encrypted" >> "$err" 2>&1
+        rc=$?
+    fi
+
+    # Fallback 2: switch to a normal app SELinux domain before executing. This
+    # can help on root managers that allow su -Z but not root app_process.
+    if ! gecko_bridge_output_ok "$out" && [ -n "$su_bin" ]; then
+        strategy="su -Z untrusted_app ${source_uid}"
+        : > "$out"
+        printf '\n--- bridge fallback: su -Z untrusted_app %s ---\n' "$source_uid" >> "$err"
+        "$su_bin" -Z "u:r:untrusted_app:s0" "$source_uid" -c \
+            "CLASSPATH='$apk' ANDROID_DATA=/data ANDROID_ROOT=/system $app_process /system/bin $BRIDGE_CLASS --uid $source_uid --no-drop --alias $alias --out $out" \
+            < "$encrypted" >> "$err" 2>&1
+        rc=$?
+    fi
+
+    # Fallback 3: app_process unavailable; dalvikvm uses the same runtime and
+    # can run the helper directly.
+    if ! gecko_bridge_output_ok "$out" && command -v dalvikvm >/dev/null 2>&1; then
+        strategy="root dalvikvm"
+        : > "$out"
+        printf '\n--- bridge fallback: dalvikvm ---\n' >> "$err"
+        CLASSPATH="$apk" ANDROID_DATA=/data ANDROID_ROOT=/system \
+            dalvikvm -cp "$apk" "$BRIDGE_CLASS" \
+            --uid "$source_uid" --alias "$alias" --out "$out" \
+            < "$encrypted" >> "$err" 2>&1
+        rc=$?
+    fi
+
+    umask "$old_umask"
+
+    if gecko_bridge_output_ok "$out"; then
+        log_ok "Keystore bridge: account decrypted (${strategy})"
+        rm -f "$err" 2>/dev/null
+        printf '%s\n' "$out"
+        return 0
+    fi
+
+    log_warn "Keystore bridge exited with code ${rc}; account was not unlocked"
+    if [ -f "$err" ]; then
+        local detail
+        detail=$(head -c 1200 "$err" 2>/dev/null | tr '\n\r' '  ')
+        [ -n "$detail" ] && log_warn "Keystore bridge detail: $detail"
+    fi
+    rm -f "$out" "$err" 2>/dev/null
+    return 1
 }
 
 # ============================================================
@@ -284,6 +444,9 @@ INIEOF
 # ============================================================
 main() {
     log_init
+    # Keep decrypted account material from lingering if the script is
+    # interrupted between the bridge and the target copy.
+    trap 'export_log; cleanup_fxa_temp' EXIT
 
     log_info "============================================"
     log_info "  Gecko Migration v8 (Fenix compatible)"
@@ -651,27 +814,54 @@ main() {
         done
     fi
     local account_transferable=0
+    local account_written=0
     local src_plain=""
+    local src_decrypted=""
+    local src_secure=""
     if [ "$MIGRATE_ACCOUNT" = "1" ]; then
-        # The first release copied the plain-text fxaAppState.xml even from
-        # Nightly. Nightly usually keeps that file as a fallback next to its
-        # Keystore store, and it is the only account state the target can read.
-        # Older SecureAbove22 builds also left the same fxaState key in
-        # fxaStateAC_kp_pre_m.xml; accept that as a second plain-text source.
-        for f in "$src_sp/fxaAppState.xml" "$src_sp/fxaStateAC_kp_pre_m.xml"; do
+        # Nightly keeps the live account in SecureAbove22Preferences. The
+        # encrypted value is tied to Nightly's Linux UID, so it cannot simply
+        # be copied. Prefer the real Keystore state and unlock it in place.
+        for f in "$src_sp/fxaStateAC_kp_post_m.xml" "$src_sp/fxaStateAC.xml"; do
             [ -f "$f" ] || continue
             if grep -q 'name="fxaState"[^>]*>[^<]' "$f" 2>/dev/null; then
-                src_plain="$f"
+                src_secure="$f"
                 break
             fi
         done
-        if [ -n "$src_plain" ]; then
-            account_transferable=1
-            if [ -f "$src_sp/fxaStatePrefAC.xml" ] || \
-               [ -f "$src_sp/fxaStateAC_kp_post_m.xml" ] || \
-               [ -f "$src_sp/fxaStateAC_kp_pre_m.xml" ]; then
-                log_info "Nightly secure account store detected; copying its plain-text fallback ($(basename "$src_plain"))"
+
+        if [ -n "$src_secure" ]; then
+            local src_uid
+            src_uid=$(stat -c '%u' "$src_dd" 2>/dev/null)
+            [ -n "$src_uid" ] || src_uid=$(get_uid "$SRC")
+            log_info "Nightly Keystore account: $(basename "$src_secure") ($(stat -c %s "$src_secure" 2>/dev/null || echo '?') bytes)"
+            local decrypted
+            if decrypted=$(gecko_decrypt_firefox_account "$src_secure" "$src_uid" "$SRC"); then
+                src_decrypted="$decrypted"
+                account_transferable=1
+            else
+                log_warn "Nightly's Keystore account could not be unlocked; trying a plain-text fallback"
             fi
+        fi
+
+        if [ -z "$src_decrypted" ]; then
+            # Older Nightly/Gecko builds can leave a plain-text copy next to
+            # the Keystore store. It may be slightly older, but it is still a
+            # valid account state when the Keystore bridge cannot run.
+            for f in "$src_sp/fxaAppState.xml" "$src_sp/fxaStateAC_kp_pre_m.xml"; do
+                [ -f "$f" ] || continue
+                if grep -q 'name="fxaState"[^>]*>[^<]' "$f" 2>/dev/null; then
+                    src_plain="$f"
+                    account_transferable=1
+                    break
+                fi
+            done
+        fi
+
+        if [ -n "$src_decrypted" ]; then
+            log_ok "Using the account decrypted from Nightly's Keystore"
+        elif [ -n "$src_plain" ]; then
+            log_info "Using Nightly's plain-text account fallback ($(basename "$src_plain"))"
         fi
     fi
 
@@ -728,15 +918,27 @@ main() {
         rm -f "${dst_sp}/fxaStateAC.xml" "${dst_sp}/fxaStatePrefAC.xml" \
               "${dst_sp}/fxaStateAC_kp_post_m.xml" "${dst_sp}/fxaStateAC_kp_pre_m.xml" \
               "${dst_sp}/fxaAppState.xml.bak" "${dst_sp}/fenix_preferences.xml.bak" 2>/dev/null
-        if [ -n "$src_plain" ]; then
-            safe_cp "$src_plain" "$dst_sp/fxaAppState.xml" "Firefox Account state (plain-text fallback)"
+        if [ -n "$src_decrypted" ]; then
+            if cp -f "$src_decrypted" "$dst_sp/fxaAppState.xml"; then
+                chmod 600 "$dst_sp/fxaAppState.xml" 2>/dev/null || true
+                account_written=1
+                log_ok "Firefox Account state unlocked from Nightly Keystore and written"
+            else
+                log_warn "Decrypted account could not be written to the target"
+            fi
+            rm -f "$src_decrypted" 2>/dev/null
+        elif [ -n "$src_plain" ]; then
+            if safe_cp "$src_plain" "$dst_sp/fxaAppState.xml" "Firefox Account state (plain-text fallback)"; then
+                account_written=1
+            fi
         else
-            log_warn "No plain-text Firefox Account state found; sign in once in the target"
+            log_warn "No Firefox Account state could be written; target account preserved"
         fi
         for n in FxaDeviceSettingsCache.xml SyncAuthInfoCache.xml syncPrefs.xml syncEngines.xml sync.logins.prefs.xml mozac_feature_accounts_push.xml; do
             [ -f "$src_sp/$n" ] && safe_cp "$src_sp/$n" "$dst_sp/$n" "sync pref: $n"
         done
-        if grep -q 'name="fxaState"' "$dst_sp/fxaAppState.xml" 2>/dev/null; then
+        if [ "$account_written" = "1" ] && \
+           grep -q 'name="fxaState"' "$dst_sp/fxaAppState.xml" 2>/dev/null; then
             if [ ! -f "${dst_sp}/fenix_preferences.xml" ]; then
                 # A very fresh target may not have created its settings file
                 # yet. Without this flag Fenix draws the account card as
@@ -757,17 +959,18 @@ PREFEOF
             fi
             log_ok "Firefox Account state copied and signed-in flag synchronized"
         else
-            # Never claim signed-in without a state, or Fenix shows an empty
-            # account card until the next launch repairs it.
-            gecko_set_pref_bool "${dst_sp}/fenix_preferences.xml" "pref_key_fxa_signed_in" "false"
-            log_warn "fxaAppState.xml was copied but has no fxaState value; sign in once in the target"
+            # Never claim signed-in without a state. Also leave the target's
+            # existing account flag untouched, because a source-side write
+            # failure must not sign the target out.
+            log_warn "No usable Firefox Account state was written; target account was left as it was"
         fi
         log_info "Target account state was backed up in $BACKUP_DIR/target_shared_prefs"
-    elif [ -f "$src_sp/fxaStateAC.xml" ] || [ -f "$src_sp/fxaStatePrefAC.xml" ]; then
-        # Firefox Nightly/debug uses SecureAbove22Preferences and a key that is
-        # bound to the source app UID. Copying it produces an undecryptable
-        # account and can leave the target stuck on the account screen.
-        log_warn "Firefox Account uses Keystore-protected Nightly/debug storage; account state was not copied. Sign in once in the target."
+    elif [ -n "$src_secure" ] || [ -f "$src_sp/fxaStatePrefAC.xml" ] || \
+         [ -f "$src_sp/fxaStateAC_kp_post_m.xml" ] || [ -f "$src_sp/fxaStateAC_kp_pre_m.xml" ]; then
+        # SecureAbove22Preferences was present but the bridge could not unlock
+        # it. Never copy the encrypted file: it is tied to Nightly's UID and
+        # would only produce a broken account card in the target.
+        log_warn "Firefox Account is Keystore-protected and was not unlocked; target account preserved. See the Keystore bridge detail above."
     else
         log_info "No Firefox Account state found in source; target account preserved"
     fi
