@@ -293,10 +293,26 @@ public final class FxaKeystoreBridge {
                     continue;
                 }
 
-                byte[] plaintext = tryDecrypt(key, nonce, ciphertext, null);
-                if (plaintext == null) {
+                byte[] plaintext = null;
+                // AndroidKeyStore keys must be used through the dedicated
+                // workaround provider. Try it first; the default JCA order in
+                // a raw app_process runtime can select Conscrypt/BouncyCastle,
+                // which report a misleading BadPaddingException for these
+                // non-exportable keys.
+                try {
                     plaintext = tryDecrypt(key, nonce, ciphertext,
                             "AndroidKeyStoreBCWorkaround");
+                } catch (Exception e) {
+                    System.err.println("bridge: alias " + candidate
+                            + " workaround failed: " + describe(e));
+                }
+                if (plaintext == null) {
+                    try {
+                        plaintext = tryDecrypt(key, nonce, ciphertext, null);
+                    } catch (Exception e) {
+                        System.err.println("bridge: alias " + candidate
+                                + " default provider failed: " + describe(e));
+                    }
                 }
                 if (plaintext != null && looksLikeAccountState(
                         new String(plaintext, StandardCharsets.UTF_8))) {
@@ -310,9 +326,7 @@ public final class FxaKeystoreBridge {
             } catch (Exception e) {
                 // Wrong alias, key invalidated, or a non-AES entry. Try the
                 // next key. The GCM tag makes a wrong key fail closed.
-                System.err.println("bridge: alias " + candidate + " failed: "
-                        + e.getClass().getSimpleName()
-                        + (e.getMessage() == null ? "" : ": " + e.getMessage()));
+                System.err.println("bridge: alias " + candidate + " failed: " + describe(e));
             }
         }
         return null;
@@ -337,6 +351,11 @@ public final class FxaKeystoreBridge {
         aes.init(Cipher.DECRYPT_MODE, key, new GCMParameterSpec(TAG_LENGTH_BITS, nonce));
         byte[] plaintext = aes.doFinal(ciphertext);
         return plaintext.length > 0 ? plaintext : null;
+    }
+
+    private static String describe(Exception e) {
+        return e.getClass().getSimpleName()
+                + (e.getMessage() == null ? "" : ": " + e.getMessage());
     }
 
     private static String extractEncryptedValue(String xml) {
