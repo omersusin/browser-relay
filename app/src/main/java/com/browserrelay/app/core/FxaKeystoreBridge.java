@@ -181,6 +181,8 @@ public final class FxaKeystoreBridge {
             install.setAccessible(true);
             install.invoke(null);
             System.err.println("bridge: AndroidKeyStore provider installed (keystore2)");
+            System.err.println("bridge: providers keystore=" + Security.getProvider(ANDROID_KEYSTORE)
+                    + " workaround=" + Security.getProvider("AndroidKeyStoreBCWorkaround"));
             return;
         } catch (Throwable first) {
             System.err.println("bridge: keystore2 provider install failed: "
@@ -244,6 +246,9 @@ public final class FxaKeystoreBridge {
             keyStore = KeyStore.getInstance(ANDROID_KEYSTORE);
             keyStore.load(null);
         } catch (Exception e) {
+            System.err.println("bridge: AndroidKeyStore load failed: "
+                    + e.getClass().getSimpleName()
+                    + (e.getMessage() == null ? "" : ": " + e.getMessage()));
             return null;
         }
 
@@ -259,8 +264,15 @@ public final class FxaKeystoreBridge {
                     aliases.add(next);
                 }
             }
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            System.err.println("bridge: alias enumeration failed: "
+                    + e.getClass().getSimpleName()
+                    + (e.getMessage() == null ? "" : ": " + e.getMessage()));
         }
+
+        System.err.println("bridge: keys visible=" + aliases.size()
+                + " preferred=" + preferredAlias + " aliases=" + aliases
+                + " containsPreferred=" + containsAlias(keyStore, preferredAlias));
 
         byte[] nonce = new byte[NONCE_LENGTH];
         System.arraycopy(encrypted, 1, nonce, 0, NONCE_LENGTH);
@@ -271,21 +283,60 @@ public final class FxaKeystoreBridge {
         for (String candidate : aliases) {
             try {
                 Key key = keyStore.getKey(candidate, null);
-                if (!(key instanceof SecretKey)) {
+                if (key == null) {
+                    System.err.println("bridge: alias " + candidate + " returned no key");
                     continue;
                 }
-                Cipher aes = Cipher.getInstance(CIPHER);
-                aes.init(Cipher.DECRYPT_MODE, key, new GCMParameterSpec(TAG_LENGTH_BITS, nonce));
-                byte[] plaintext = aes.doFinal(ciphertext);
-                if (plaintext.length > 0) {
+                if (!(key instanceof SecretKey)) {
+                    System.err.println("bridge: alias " + candidate + " is "
+                            + key.getClass().getSimpleName() + ", not a SecretKey");
+                    continue;
+                }
+
+                byte[] plaintext = tryDecrypt(key, nonce, ciphertext, null);
+                if (plaintext == null) {
+                    plaintext = tryDecrypt(key, nonce, ciphertext,
+                            "AndroidKeyStoreBCWorkaround");
+                }
+                if (plaintext != null && looksLikeAccountState(
+                        new String(plaintext, StandardCharsets.UTF_8))) {
+                    System.err.println("bridge: decrypted with alias " + candidate);
                     return plaintext;
                 }
-            } catch (GeneralSecurityException | IllegalArgumentException ignored) {
+                if (plaintext != null) {
+                    System.err.println("bridge: alias " + candidate
+                            + " decrypted data that is not an account document");
+                }
+            } catch (Exception e) {
                 // Wrong alias, key invalidated, or a non-AES entry. Try the
                 // next key. The GCM tag makes a wrong key fail closed.
+                System.err.println("bridge: alias " + candidate + " failed: "
+                        + e.getClass().getSimpleName()
+                        + (e.getMessage() == null ? "" : ": " + e.getMessage()));
             }
         }
         return null;
+    }
+
+    private static boolean containsAlias(KeyStore keyStore, String alias) {
+        if (alias == null || alias.isEmpty()) {
+            return false;
+        }
+        try {
+            return keyStore.containsAlias(alias);
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+    private static byte[] tryDecrypt(Key key, byte[] nonce, byte[] ciphertext, String provider)
+            throws GeneralSecurityException {
+        Cipher aes = provider == null
+                ? Cipher.getInstance(CIPHER)
+                : Cipher.getInstance(CIPHER, provider);
+        aes.init(Cipher.DECRYPT_MODE, key, new GCMParameterSpec(TAG_LENGTH_BITS, nonce));
+        byte[] plaintext = aes.doFinal(ciphertext);
+        return plaintext.length > 0 ? plaintext : null;
     }
 
     private static String extractEncryptedValue(String xml) {
