@@ -1,10 +1,13 @@
 package com.browserrelay.app.core
 
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.drawable.Drawable
+import android.net.Uri
 import android.os.Build
 import com.browserrelay.app.model.BrowserType
+import java.util.Locale
 
 /** A browser that is actually installed on the device. */
 data class InstalledBrowser(
@@ -52,34 +55,59 @@ object BrowserCatalog {
         Known("com.yandex.browser", "Yandex Browser", BrowserType.CHROMIUM),
         Known("com.mi.globalbrowser", "Mi Browser", BrowserType.CHROMIUM),
         Known("com.uc.browser.en", "UC Browser", BrowserType.CHROMIUM),
-        Known("com.quark.browser", "Quark", BrowserType.CHROMIUM)
+        Known("com.quark.browser", "Quark", BrowserType.CHROMIUM),
+        Known("io.github.jqssun.helium", "Helium", BrowserType.CHROMIUM)
     )
 
     private val knownByPackage = KNOWN.associateBy { it.pkg }
 
     fun installed(context: Context): List<InstalledBrowser> {
         val pm = context.packageManager
-        return KNOWN.mapNotNull { known ->
-            val info = applicationInfo(pm, known.pkg) ?: return@mapNotNull null
-            InstalledBrowser(
+        val result = LinkedHashMap<String, InstalledBrowser>()
+
+        KNOWN.forEach { known ->
+            val info = applicationInfo(pm, known.pkg) ?: return@forEach
+            result[known.pkg] = InstalledBrowser(
                 packageName = known.pkg,
                 label = runCatching { pm.getApplicationLabel(info).toString() }
                     .getOrDefault(known.label),
                 type = known.type,
                 icon = runCatching { pm.getApplicationIcon(info) }.getOrNull()
             )
-        }.sortedWith(compareBy({ it.type.ordinal }, { it.label.lowercase() }))
+        }
+
+        // Android 11+ hides undeclared packages from the package manager.
+        // The manifest asks for web-link handlers, so browser forks that are
+        // not hard-coded in the catalog still show up here.
+        queryWebBrowsers(pm).forEach { pkg ->
+            if (pkg == context.packageName || result.containsKey(pkg)) return@forEach
+            val info = applicationInfo(pm, pkg) ?: return@forEach
+            val label = runCatching { pm.getApplicationLabel(info).toString() }
+                .getOrDefault(pkg)
+            result[pkg] = InstalledBrowser(
+                packageName = pkg,
+                label = label,
+                type = detectType(pkg, label),
+                icon = runCatching { pm.getApplicationIcon(info) }.getOrNull(),
+                isKnown = false
+            )
+        }
+
+        return result.values.sortedWith(
+            compareBy({ it.type.ordinal }, { it.label.lowercase(Locale.ROOT) })
+        )
     }
 
     fun findByPackage(context: Context, pkg: String): InstalledBrowser? {
         val pm = context.packageManager
         val info = applicationInfo(pm, pkg) ?: return null
         val known = knownByPackage[pkg]
+        val label = runCatching { pm.getApplicationLabel(info).toString() }
+            .getOrDefault(known?.label ?: pkg)
         return InstalledBrowser(
             packageName = pkg,
-            label = runCatching { pm.getApplicationLabel(info).toString() }
-                .getOrDefault(known?.label ?: pkg),
-            type = known?.type ?: BrowserType.UNKNOWN,
+            label = label,
+            type = known?.type ?: detectType(pkg, label),
             icon = runCatching { pm.getApplicationIcon(info) }.getOrNull(),
             isKnown = known != null
         )
@@ -87,10 +115,52 @@ object BrowserCatalog {
 
     fun labelFor(pkg: String): String = knownByPackage[pkg]?.label ?: pkg
 
-    fun typeFor(pkg: String): BrowserType = knownByPackage[pkg]?.type ?: BrowserType.UNKNOWN
+    fun typeFor(pkg: String): BrowserType =
+        knownByPackage[pkg]?.type ?: detectType(pkg, labelFor(pkg))
 
     fun isInstalled(context: Context, pkg: String): Boolean =
         applicationInfo(context.packageManager, pkg) != null
+
+    private fun queryWebBrowsers(pm: PackageManager): Set<String> {
+        val packages = LinkedHashSet<String>()
+        listOf("https", "http").forEach { scheme ->
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("$scheme://example.com"))
+                .addCategory(Intent.CATEGORY_BROWSABLE)
+            val resolved = runCatching {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    pm.queryIntentActivities(
+                        intent,
+                        PackageManager.ResolveInfoFlags.of(0)
+                    )
+                } else {
+                    @Suppress("DEPRECATION")
+                    pm.queryIntentActivities(intent, 0)
+                }
+            }.getOrDefault(emptyList())
+            resolved.forEach { info ->
+                info.activityInfo?.packageName?.let(packages::add)
+            }
+        }
+        return packages
+    }
+
+    private fun detectType(pkg: String, label: String): BrowserType {
+        val value = "$pkg $label".lowercase(Locale.ROOT)
+        val gecko = listOf(
+            "firefox", "mozilla", "gecko", "fennec", "mull", "iceraven",
+            "tor browser", "icecat", "klar", "focus"
+        )
+        val chromium = listOf(
+            "chrom", "helium", "titanium", "brave", "chrome", "edge",
+            "opera", "vivaldi", "samsung", "duckduckgo", "yandex", "quark",
+            "uc browser"
+        )
+        return when {
+            gecko.any { value.contains(it) } -> BrowserType.GECKO
+            chromium.any { value.contains(it) } -> BrowserType.CHROMIUM
+            else -> BrowserType.UNKNOWN
+        }
+    }
 
     private fun applicationInfo(pm: PackageManager, pkg: String): android.content.pm.ApplicationInfo? =
         runCatching {

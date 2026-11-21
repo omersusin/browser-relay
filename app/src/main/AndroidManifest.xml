@@ -35,6 +35,21 @@
         <package android:name="com.mi.globalbrowser" />
         <package android:name="com.uc.browser.en" />
         <package android:name="com.quark.browser" />
+        <package android:name="io.github.jqssun.helium" />
+
+        <!-- Let the picker find browser forks that were not in the catalog.
+             A package that handles web links is visible without the broad
+             QUERY_ALL_PACKAGES permission. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data android:scheme="https" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data android:scheme="http" />
+        </intent>
     </queries>
 
     <application
